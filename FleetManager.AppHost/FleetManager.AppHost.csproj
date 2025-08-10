@@ -8,6 +8,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <UserSecretsId>f8046054-0379-4e21-a238-1443e8e7f4ee</UserSecretsId>
+        <RootNamespace>FleetManager</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
