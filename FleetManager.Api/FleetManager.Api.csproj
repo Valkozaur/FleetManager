@@ -7,8 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Google.Apis" Version="1.70.0" />
-        <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
+        <PackageReference Include="Google.Apis.Auth.AspNetCore3" Version="1.70.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3"/>
         <PackageReference Include="TickerQ" Version="2.4.4" />
         <PackageReference Include="TickerQ.Dashboard" Version="2.4.4" />
@@ -16,7 +15,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="GoogleServices\" />
+      <ProjectReference Include="..\FleetManager.Infrastructure\FleetManager.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>
