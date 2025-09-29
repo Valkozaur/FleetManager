@@ -208,3 +208,5 @@ __marimo__/
 /data
 /logs
 /.claude
+credentials.json
+token.jsoncredentials.json
