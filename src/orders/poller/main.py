@@ -15,7 +15,8 @@ from dotenv import load_dotenv
 # Add parent directory to path to import gmail_client
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from gmail_client import GmailClient
+from orders.poller.clients.gmail_client import GmailClient
+from orders.poller.models.email import Email
 
 # Load environment variables
 load_dotenv()
@@ -90,7 +91,7 @@ class GmailPoller:
             logger.error(f"Failed to initialize Gmail client: {e}")
             raise
 
-    def poll_emails(self) -> List[Dict[str, Any]]:
+    def poll_emails(self) -> List[Email]:
         """Poll for new emails"""
         try:
             logger.info("Starting email polling...")
@@ -122,17 +123,34 @@ class GmailPoller:
             logger.error(f"Failed to poll emails: {e}")
             raise
 
-    def _save_emails(self, emails: List[Dict[str, Any]]):
+    def _save_emails(self, emails: List[Email]):
         """Save emails to output file"""
         try:
             # Create output directory if it doesn't exist
             os.makedirs(os.path.dirname(self.config['output_file']), exist_ok=True)
 
+            # Convert emails to dictionaries for JSON serialization
+            # Handle attachments specially since they contain bytes
+            email_dicts = []
+            for email in emails:
+                email_dict = email.model_dump()
+                # Convert attachment bytes to base64 for JSON serialization
+                email_dict['attachments'] = [
+                    {
+                        'filename': att.filename,
+                        'mime_type': att.mime_type,
+                        'size': att.size,
+                        'data_b64': att.data.decode('latin-1') if isinstance(att.data, bytes) else att.data
+                    }
+                    for att in email.attachments
+                ]
+                email_dicts.append(email_dict)
+
             # Prepare data for saving
             output_data = {
                 'poll_timestamp': datetime.now().isoformat(),
                 'total_emails': len(emails),
-                'emails': emails
+                'emails': email_dicts
             }
 
             # Save to file

@@ -15,7 +15,8 @@ from dotenv import load_dotenv
 # Add parent directory to path to import existing modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from gmail_client import GmailClient
+from orders.poller.clients.gmail_client import GmailClient
+from orders.poller.models.email import Email
 from ..gemini_integration import (
     GeminiEmailProcessor, GeminiConfig, global_error_tracker,
     ErrorSeverity, ErrorCategory, handle_errors
@@ -105,8 +106,8 @@ class EnhancedGmailPoller:
     severity=ErrorSeverity.CRITICAL,
     category=ErrorCategory.CONFIGURATION_ERROR,
     reraise=True
-)
-def initialize(self):
+    )
+    def initialize(self):
         """Initialize the Gmail client and Gemini processor"""
         # Initialize Gmail client
         self.client = GmailClient(
@@ -132,8 +133,8 @@ def initialize(self):
     severity=ErrorSeverity.HIGH,
     category=ErrorCategory.PROCESSING_ERROR,
     reraise=True
-)
-def poll_emails(self) -> Dict[str, Any]:
+    )
+    def poll_emails(self) -> Dict[str, Any]:
         """Poll for new emails with optional Gemini processing"""
         logger.info("Starting enhanced email polling...")
 
@@ -179,8 +180,8 @@ def poll_emails(self) -> Dict[str, Any]:
             'gemini_enabled': self.enable_gemini
         }
 
-    def _filter_high_confidence_emails(self, emails: List[Dict[str, Any]],
-                                    processing_results: List) -> List[Dict[str, Any]]:
+    def _filter_high_confidence_emails(self, emails: List[Email],
+                                    processing_results: List) -> List[Email]:
         """Filter emails based on confidence threshold"""
         if not processing_results:
             return emails
@@ -201,19 +202,36 @@ def poll_emails(self) -> Dict[str, Any]:
     severity=ErrorSeverity.MEDIUM,
     category=ErrorCategory.FILE_ERROR,
     reraise=False
-)
-def _save_emails(self, emails: List[Dict[str, Any]],
+    )
+    def _save_emails(self, emails: List[Email],
                     processing_results: Optional[List] = None):
         """Save emails and processing results to output files"""
         # Create output directory if it doesn't exist
         os.makedirs(os.path.dirname(self.config['output_file']), exist_ok=True)
+
+        # Convert emails to dictionaries for JSON serialization
+        # Handle attachments specially since they contain bytes
+        email_dicts = []
+        for email in emails:
+            email_dict = email.model_dump()
+            # Convert attachment bytes to base64 for JSON serialization
+            email_dict['attachments'] = [
+                {
+                    'filename': att.filename,
+                    'mime_type': att.mime_type,
+                    'size': att.size,
+                    'data_b64': att.data.decode('latin-1') if isinstance(att.data, bytes) else att.data
+                }
+                for att in email.attachments
+            ]
+            email_dicts.append(email_dict)
 
         # Save raw emails
         output_data = {
             'poll_timestamp': datetime.now().isoformat(),
             'gemini_enabled': self.enable_gemini,
             'total_emails': len(emails),
-            'emails': emails
+            'emails': email_dicts
         }
 
         with open(self.config['output_file'], 'w') as f:
@@ -279,8 +297,8 @@ def _save_emails(self, emails: List[Dict[str, Any]],
     severity=ErrorSeverity.LOW,
     category=ErrorCategory.PROCESSING_ERROR,
     reraise=False
-)
-def get_statistics(self) -> Dict[str, Any]:
+    )
+    def get_statistics(self) -> Dict[str, Any]:
         """Get processing statistics"""
         stats = {
             'gemini_enabled': self.enable_gemini,

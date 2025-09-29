@@ -13,7 +13,7 @@ from pathlib import Path
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src'))
 
-from orders.poller.gmail_client import GmailClient
+from orders.poller.clients.gmail_client import GmailClient
 
 def generate_auth_url():
     """Generate authorization URL for manual authentication"""

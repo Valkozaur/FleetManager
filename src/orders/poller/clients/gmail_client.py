@@ -1,13 +1,16 @@
 import os
 import json
 import logging
+import base64
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow, Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+from ..models.email import Email, Attachment
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +88,7 @@ class GmailClient:
 
     def get_emails(self, max_results: int = 10,
                    query: str = '',
-                   after_timestamp: Optional[str] = None) -> list:
+                   after_timestamp: Optional[str] = None) -> List[Email]:
         """Fetch emails from Gmail"""
         try:
             # Build query
@@ -120,13 +123,14 @@ class GmailClient:
             logger.error(f"Failed to fetch emails: {e}")
             raise
 
-    def _get_email_details(self, msg_id: str) -> Dict[str, Any]:
+    def _get_email_details(self, msg_id: str) -> Email:
         """Get detailed information about a specific email"""
         try:
+            # Get full message with payload
             message = self.service.users().messages().get(
                 userId='me',
                 id=msg_id,
-                format='metadata'
+                format='full'
             ).execute()
 
             # Extract headers
@@ -134,8 +138,11 @@ class GmailClient:
             for header in message['payload']['headers']:
                 headers[header['name'].lower()] = header['value']
 
-            # Get email body (snippet)
-            snippet = message.get('snippet', '')
+            # Extract body content
+            body = self._extract_body(message['payload'])
+
+            # Extract attachments
+            attachments = self._extract_attachments(message)
 
             # Parse date
             date_str = headers.get('date', '')
@@ -146,22 +153,92 @@ class GmailClient:
             except:
                 date_obj = datetime.now()
 
-            return {
-                'id': message['id'],
-                'thread_id': message['threadId'],
-                'subject': headers.get('subject', 'No Subject'),
-                'from': headers.get('from', ''),
-                'to': headers.get('to', ''),
-                'date': date_obj,
-                'date_str': date_str,
-                'snippet': snippet,
-                'label_ids': message.get('labelIds', []),
-                'internal_date': int(message.get('internalDate', 0))
-            }
+            return Email(
+                id=message['id'],
+                subject=headers.get('subject', 'No Subject'),
+                sender=headers.get('from', ''),
+                body=body,
+                received_at=date_obj,
+                attachments=attachments
+            )
 
         except Exception as e:
             logger.error(f"Failed to get email details for {msg_id}: {e}")
             raise
+
+    def _extract_body(self, payload: Dict[str, Any]) -> str:
+        """Extract the email body from the message payload"""
+        try:
+            if 'parts' in payload:
+                # Multipart message
+                for part in payload['parts']:
+                    if part.get('mimeType') == 'text/plain' and 'data' in part.get('body', {}):
+                        return base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
+                    elif part.get('mimeType') == 'text/html' and 'data' in part.get('body', {}):
+                        # For HTML, we could convert to text, but for now return as-is
+                        return base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
+            else:
+                # Single part message
+                if 'data' in payload.get('body', {}):
+                    return base64.urlsafe_b64decode(payload['body']['data']).decode('utf-8')
+
+            return ""  # No body found
+
+        except Exception as e:
+            logger.error(f"Failed to extract body: {e}")
+            return ""
+
+    def _extract_attachments(self, message: Dict[str, Any]) -> List[Attachment]:
+        """Extract attachments from the message"""
+        attachments = []
+        try:
+            def process_parts(parts):
+                for part in parts:
+                    if 'filename' in part and part['filename']:
+                        # This is an attachment
+                        attachment_id = part['body'].get('attachmentId')
+                        if attachment_id:
+                            try:
+                                attachment_data = self._download_attachment(message['id'], attachment_id)
+                                if attachment_data:
+                                    attachments.append(Attachment(
+                                        filename=part['filename'],
+                                        mime_type=part.get('mimeType', 'application/octet-stream'),
+                                        size=part['body'].get('size', 0),
+                                        data=attachment_data
+                                    ))
+                            except Exception as e:
+                                logger.error(f"Failed to download attachment {part['filename']}: {e}")
+
+                    # Recursively process nested parts
+                    if 'parts' in part:
+                        process_parts(part['parts'])
+
+            if 'parts' in message.get('payload', {}):
+                process_parts(message['payload']['parts'])
+
+        except Exception as e:
+            logger.error(f"Failed to extract attachments: {e}")
+
+        return attachments
+
+    def _download_attachment(self, message_id: str, attachment_id: str) -> Optional[bytes]:
+        """Download attachment data from Gmail"""
+        try:
+            attachment = self.service.users().messages().attachments().get(
+                userId='me',
+                messageId=message_id,
+                id=attachment_id
+            ).execute()
+
+            data = attachment.get('data', '')
+            if data:
+                return base64.urlsafe_b64decode(data)
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to download attachment {attachment_id}: {e}")
+            return None
 
     def get_last_check_timestamp(self) -> Optional[str]:
         """Get the timestamp of the last check"""
