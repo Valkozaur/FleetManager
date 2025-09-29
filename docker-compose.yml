@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  gmail-poller:
+    build: .
+    container_name: fleetmanager-gmail-poller
+    restart: "no"  # We'll control restarts via cron
+    environment:
+      - GMAIL_CREDENTIALS_FILE=/app/credentials.json
+      - DATA_DIR=/app/data
+      - LOG_DIR=/app/logs
+      - MAX_EMAILS=10
+      - EMAIL_QUERY=
+      - LOG_LEVEL=INFO
+      - OUTPUT_FILE=/app/data/emails.json
+    volumes:
+      - ./credentials.json:/app/credentials.json:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+
+  # Optional: Health check service (for monitoring)
+  health-check:
+    image: alpine:latest
+    container_name: fleetmanager-health-check
+    depends_on:
+      - gmail-poller
+    command: >
+      sh -c "
+        apk add --no-cache curl &&
+        echo 'Health check service started' &&
+        tail -f /dev/null
+      "
+    restart: unless-stopped
+    profiles:
+      - monitoring
