@@ -1,26 +1,31 @@
 from google import genai
 from google.genai import types
+from ..models.email import Email, Attachment 
+from enum import Enum
+from .email_prompt_construct import construct_prompt_parts
 import logging
 
 logger = logging.getLogger(__name__)
 
-class MailClassificationEnum:
+class MailClassificationEnum(Enum):
     """Enumeration for mail classification types"""
     ORDER = "Order"
     INVOICE = "Invoice"
     OTHER = "Other"
 
-class GeminiClassifier:
+class MailClassifier:
     """Classifier using Google Gemini Developer API"""
     
-    CLASIFIER_INSTRUCTIONS="""
+    CLASSIFIER_INSTRUCTIONS="""
      You are an email classification assistant used within a truck fleet management system.
      Your task is to classify incoming emails into one of the following categories: Order, Invoice, or Other.
         - Order: The email contains a new order request for transportation services.
         - Invoice: The email contains billing information or an invoice for services rendered.
         - Other: The email does not pertain to orders or invoices.
 
-    #BE AWARE:
+    #Please respond with only one of the following keywords: "Order", "Invoice", or "Other".
+
+    ##BE AWARE:
         - You will be provided with email content including subject, body.
         - You may or may not be provided with attachments depending on the email.
         - You must base your classification on the whole information provided (including attachments if any). 
@@ -30,4 +35,35 @@ class GeminiClassifier:
         self.api_key = api_key
         self.client = genai.Client(api_key=api_key)
 
-    def classify_email(self, email_content: str, attachments: list = None) -> str:
+    def close(self):
+        """Close the Gemini client"""
+        if hasattr(self.client, 'close'):
+            self.client.close()
+
+    def __del__(self):
+        """Cleanup when object is destroyed"""
+        self.close()
+
+    def classify_email(self, email: Email) -> MailClassificationEnum:
+        """Clasify email content using Gemini API"""
+
+        parts = construct_prompt_parts(email=email)
+
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash-lite-preview-09-2025",
+                contents=parts,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=10,
+                    temperature=0.1,
+                    system_instruction=self.CLASSIFIER_INSTRUCTIONS,
+                    response_mime_type="text/x.enum",
+                    response_schema=MailClassificationEnum
+                )
+            )
+
+            return MailClassificationEnum(response.text.strip())
+        except Exception as e:
+            logger.error(f"Classification failed: {e}")
+            return MailClassificationEnum.OTHER
+
