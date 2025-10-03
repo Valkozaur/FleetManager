@@ -16,6 +16,12 @@ sys.path.insert(0, project_root)
 from src.orders.poller.services.classifier import MailClassifier, MailClassificationEnum
 from src.orders.poller.services.logistics_data_extract import LogisticsDataExtractor
 from src.orders.poller.clients.gmail_client import GmailClient
+from src.orders.poller.clients.google_maps_client import GoogleMapsClient
+from src.orders.poller.pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
+from src.orders.poller.pipeline.processing_context import ProcessingContext
+from src.orders.poller.pipeline.steps.classification_step import EmailClassificationStep
+from src.orders.poller.pipeline.steps.logistics_extraction_step import LogisticsExtractionStep
+from src.orders.poller.pipeline.steps.geocoding_step import GeocodingStep
 
 # Load environment variables
 load_dotenv()
@@ -31,7 +37,22 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-def run(): 
+def _create_processing_pipeline(classifier: MailClassifier, extractor: LogisticsDataExtractor, google_maps_client: GoogleMapsClient | None) -> ProcessingPipeline:
+    """Create and configure the processing pipeline with all steps"""
+
+    # Create processing steps
+    steps = [
+        EmailClassificationStep(classifier),
+        LogisticsExtractionStep(extractor)
+    ]
+
+    # Add geocoding step only if Google Maps client is available
+    if google_maps_client:
+        steps.append(GeocodingStep(google_maps_client))
+
+    return ProcessingPipeline(steps)
+
+def run():
     """Run pipeline"""
     # Reconfigure logging based on environment variables
     log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
@@ -53,35 +74,67 @@ def run():
             token_file='token.json',
             data_dir=os.getenv('DATA_DIR', './data')
         )
+
         classifier = MailClassifier(api_key=os.getenv('GEMINI_API_KEY'))
         extractor = LogisticsDataExtractor(api_key=os.getenv('GEMINI_API_KEY'))
+
+        # Initialize Google Maps client for geocoding
+        google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
+        google_maps_client = GoogleMapsClient(api_key=google_maps_api_key) if google_maps_api_key else None
+
+        # Create processing pipeline
+        pipeline = _create_processing_pipeline(classifier, extractor, google_maps_client)
+        logger.info(f"Created processing pipeline with {len(pipeline.steps)} steps")
 
         # Fetch unread emails
         emails = gmail_client.get_emails(query='is:unread')
         logger.info(f"Fetched {len(emails)} unread emails.")
 
+        # Process each email through the pipeline
+        successful_processing = 0
+        failed_processing = 0
+
         for email in emails:
-            logger.info(f"Processing email with subject: {email.subject}")
+            try:
+                logger.info(f"Processing email with subject: {email.subject}")
 
-            # Classify email
-            classification = classifier.classify_email(email)
-            logger.info(f"Email classified as: {classification}")
+                # Create processing context for this email
+                context = ProcessingContext(email=email)
 
-            if classification == MailClassificationEnum.ORDER:
-                # Extract logistics data
-                logistics_data = extractor.extract_logistics_data(email)
-                if logistics_data:
-                    logger.info(f"Extracted logistics data: {logistics_data}")
+                # Execute the pipeline
+                processed_context = pipeline.execute(context)
+
+                # Log results
+                if processed_context.is_order_email() and processed_context.has_logistics_data():
+                    logger.info(f"Successfully processed order email. Logistics data: {processed_context.logistics_data}")
+                    successful_processing += 1
+                elif processed_context.is_order_email():
+                    logger.warning(f"Email classified as order but failed to extract logistics data. Errors: {processed_context.errors}")
+                    failed_processing += 1
                 else:
-                    logger.warning("Failed to extract logistics data.")
-            else:
-                logger.info("Email is not related to order. Skipping extraction.")
+                    logger.info(f"Email classified as {processed_context.classification}. Skipping logistics extraction.")
 
-        return True
+            except PipelineExecutionError as e:
+                logger.error(f"Pipeline execution failed for email '{email.subject}': {e}")
+                failed_processing += 1
+            except Exception as e:
+                logger.error(f"Unexpected error processing email '{email.subject}': {e}", exc_info=True)
+                failed_processing += 1
+
+        logger.info(f"Email processing completed. Successful: {successful_processing}, Failed: {failed_processing}")
+        return failed_processing == 0
 
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)
         return False
+    finally:
+        # Cleanup clients
+        if 'google_maps_client' in locals() and google_maps_client:
+            google_maps_client.close()
+        if 'extractor' in locals() and extractor:
+            extractor.close()
+        if 'classifier' in locals() and classifier:
+            classifier.close()
 
 
 def main():

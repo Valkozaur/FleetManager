@@ -24,20 +24,6 @@ class LogisticsDataExtractor:
         - Vehicle Type
         - Special Requirements (if any)
 
-    #Please respond in JSON format with the following fields:
-    {
-        "loading_address": str,
-        "unloading_address": str,
-        "loading_date": str,
-        "unloading_date": str,
-        "loading_coordinates": str | null,
-        "unloading_coordinates": str | null,
-        "cargo_description": str,
-        "weight": str,
-        "vehicle_type": str,
-        "special_requirements": str | null
-    }
-
     ##BE AWARE:
         - You will be provided with email content including subject, body, and possibly attachments.
         - You must base your extraction on the whole information provided (including attachments if any). 
@@ -62,11 +48,12 @@ class LogisticsDataExtractor:
             parts = construct_prompt_parts(email=email)
 
             response = self.client.models.generate_content(
-                model="gemini-2.5-flash-lite-preview-09-2025",
+                model="gemini-2.5-flash-preview-09-2025",
                 contents=parts,
                 config=types.GenerateContentConfig(
                     temperature=0.1,
                     system_instruction=self.EXTRACTION_INSTRUCTIONS,
+                    response_mime_type='application/json',
                     response_schema=LogisticsDataExtract
                 )
             )

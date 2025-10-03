@@ -11,8 +11,9 @@ FleetManager is a truck fleet management system that processes emails to extract
 ### Core Components
 
 - **Gmail Client** (`src/orders/poller/clients/gmail_client.py`): Handles OAuth 2.0 authentication with Gmail API and fetches emails with attachments
+- **Google Maps Client** (`src/orders/poller/clients/google_maps_client.py`): Provides geocoding services to convert addresses to coordinates
 - **Email Classifier** (`src/orders/poller/services/classifier.py`): Uses Google Gemini API to classify emails as Order, Invoice, or Other
-- **Logistics Extractor** (`src/orders/poller/services/logistics_data_extract.py`): Extracts structured logistics data from order emails using Gemini API
+- **Logistics Extractor** (`src/orders/poller/services/logistics_data_extract.py`): Extracts structured logistics data from order emails using Gemini API and fills missing coordinates with geocoding
 - **Email Models** (`src/orders/poller/models/email.py`, `src/orders/poller/models/logistics.py`): Pydantic models for email and logistics data structures
 
 ### Data Flow
@@ -20,12 +21,14 @@ FleetManager is a truck fleet management system that processes emails to extract
 1. Gmail client fetches unread emails using `is:unread` query
 2. Each email is classified using Gemini API (`gemini-2.5-flash-lite-preview-09-2025`)
 3. For emails classified as "Order", logistics data is extracted (addresses, dates, cargo details, etc.)
-4. Extracted data is returned as structured `LogisticsDataExtract` objects
+4. If coordinates are missing from extracted data, Google Maps Geocoding API is used to convert addresses to coordinates
+5. Complete logistics data with coordinates is returned as structured `LogisticsDataExtract` objects
 
 ## Environment Setup
 
 ### Required Environment Variables
 - `GEMINI_API_KEY`: Google Gemini API key for AI classification and extraction
+- `GOOGLE_MAPS_API_KEY`: Google Maps API key for address geocoding
 - `LOG_LEVEL`: Logging level (default: INFO)
 
 ### Required Files
