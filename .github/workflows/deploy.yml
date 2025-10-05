@@ -121,11 +121,9 @@ jobs:
     permissions:
       contents: read
       deployments: write
-      secrets: inherit
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: 
       name: production
-      url: http://${{ secrets.HETZNER_HOST }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
