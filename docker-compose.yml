@@ -18,13 +18,9 @@ services:
       - GMAIL_CREDENTIALS_FILE=/app/credentials/credentials.json
     networks:
       - fleetmanager_network
-    # Optional: Add resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
+    # Optional: To enforce memory limits in non-Swarm mode, run with:
+    #   docker-compose up --memory="512M"
+    # The deploy.resources section is ignored by docker-compose in non-Swarm mode.
 
   # Optional: Add cron service for automated execution
   fleetmanager-cron:
