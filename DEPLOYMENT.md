@@ -19,13 +19,11 @@ FleetManager is a Gmail-based logistics order processing system that:
    - Create a new project or select existing one
 
 2. **Enable APIs**
-   ```bash
-   # Enable these APIs in your Google Cloud project:
+   Enable these APIs in your Google Cloud project:
    - Gmail API
    - Google Sheets API
    - Google Maps Geocoding API
    - Google Gemini API
-   ```
 
 3. **Create OAuth 2.0 Credentials**
    - Go to "APIs & Services" → "Credentials"
