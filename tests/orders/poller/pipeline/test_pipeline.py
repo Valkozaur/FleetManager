@@ -1,11 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
-import sys
-import os
-
-# Add the src directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../..'))
 
 from src.orders.poller.pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
 from src.orders.poller.pipeline.processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
