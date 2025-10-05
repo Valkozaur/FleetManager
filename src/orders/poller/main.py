@@ -74,6 +74,10 @@ def run():
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
+    # Check if we're in test mode
+    test_mode = os.getenv('TEST_MODE', 'false').lower() == 'true'
+    test_email_query = os.getenv('TEST_EMAIL_QUERY', '')
+
     try:
         gmail_client = GmailClient(
             credentials_file=os.getenv('GMAIL_CREDENTIALS_FILE', './credentials.json'),
@@ -110,9 +114,21 @@ def run():
         pipeline = _create_processing_pipeline(classifier, extractor, google_maps_client, sheets_client)
         logger.info(f"Created processing pipeline with {len(pipeline.steps)} steps")
 
-        # Fetch unread emails
-        emails = gmail_client.get_emails(query='is:unread')
-        logger.info(f"Fetched {len(emails)} unread emails.")
+        # Determine email query based on mode
+        if test_mode:
+            if test_email_query:
+                email_query = test_email_query
+                logger.info(f"TEST MODE: Using custom email query: '{email_query}'")
+            else:
+                email_query = 'is:unread'
+                logger.warning("TEST MODE: No TEST_EMAIL_QUERY provided, using default query 'is:unread'")
+        else:
+            email_query = 'is:unread'
+            logger.info("NORMAL MODE: Using default query 'is:unread'")
+
+        # Fetch emails
+        emails = gmail_client.get_emails(query=email_query)
+        logger.info(f"Fetched {len(emails)} emails using query: '{email_query}'")
 
         # Process each email through the pipeline
         successful_processing = 0
