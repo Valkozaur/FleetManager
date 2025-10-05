@@ -195,19 +195,49 @@ HETZNER_PORT=22                  # SSH port (default: 22)
    cd ~/fleetmanager
    ```
 
-2. **Deploy Manually**
+2. **Run Pre-deployment Validation**
    ```bash
-   # Download latest docker-compose.yml
-   curl -o docker-compose.yml https://raw.githubusercontent.com/your-username/FleetManager/main/docker-compose.yml
-
-   # Create .env file
-   cp .env.example .env
-   # Edit .env with your API keys
-
-   # Deploy
-   chmod +x scripts/deploy-manual.sh
-   ./scripts/deploy-manual.sh
+   bash scripts/validate-deployment.sh
    ```
+
+3. **Deploy Manually**
+   ```bash
+   bash scripts/deploy-manual.sh
+   ```
+
+## Post-Deployment Setup
+
+### Set Up Automated Execution
+
+After deployment, set up cron for automated email polling:
+
+```bash
+# Set up cron job (runs every 5 minutes)
+bash scripts/setup-cron.sh
+
+# Verify cron is working
+crontab -l | grep fleetmanager
+```
+
+### Set Up Monitoring
+
+```bash
+# Run health check
+bash scripts/health-check.sh
+
+# Set up automated health monitoring (optional)
+echo "*/30 * * * * ~/fleetmanager/scripts/health-check.sh" | crontab -
+```
+
+### Set Up Backups
+
+```bash
+# Create initial backup
+bash scripts/backup.sh
+
+# Set up automated daily backups (optional)
+echo "0 2 * * * ~/fleetmanager/scripts/backup.sh" | crontab -
+```
 
 ## Configuration
 
@@ -261,24 +291,36 @@ docker inspect fleetmanager | grep Health -A 10
 ### Log Management
 
 ```bash
+# View logs
+docker-compose logs -f
+
 # View logs from last hour
 docker-compose logs --since=1h
 
 # View error logs only
 docker-compose logs | grep ERROR
 
-# Rotate logs (setup logrotate)
-sudo nano /etc/logrotate.d/fleetmanager
+# Check cron logs
+tail -f ~/fleetmanager/logs/cron.log
+
+# Manual log rotation
+sudo logrotate -f /etc/logrotate.d/fleetmanager
 ```
 
 ### Backup Strategy
 
 ```bash
-# Backup data directory
-tar -czf fleetmanager-backup-$(date +%Y%m%d).tar.gz data/
+# Create backup
+bash scripts/backup.sh
 
-# Backup Google Sheets (manual export)
-# Use Google Sheets export feature periodically
+# List available backups
+ls -lh ~/fleetmanager-backups/
+
+# Restore from backup
+cd ~/fleetmanager
+docker-compose down
+tar -xzf ~/fleetmanager-backups/fleetmanager_20241201_020000.tar.gz
+docker-compose up -d
 ```
 
 ### Update Application
@@ -345,11 +387,17 @@ docker-compose restart fleetmanager
 # Monitor resource usage
 docker stats fleetmanager
 
+# Run health check
+bash scripts/health-check.sh
+
 # Check disk space
 df -h
 
 # Monitor network connectivity
 ping gmail.com
+
+# Check container health
+docker inspect fleetmanager | grep Health -A 10
 ```
 
 ## Security Considerations

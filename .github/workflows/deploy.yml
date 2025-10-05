@@ -19,7 +19,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.13'
 
     - name: Install dependencies
       run: |
@@ -104,11 +104,23 @@ except ImportError as e:
           mkdir -p ~/fleetmanager
           cd ~/fleetmanager
 
+          # Validate required files exist
+          if [ ! -f "credentials/credentials.json" ]; then
+            echo "❌ ERROR: credentials/credentials.json not found!"
+            echo "Please copy your OAuth 2.0 credentials to ~/fleetmanager/credentials/"
+            exit 1
+          fi
+
+          if [ ! -f "data/token.json" ] && [ ! -f "data/token_sheets.json" ]; then
+            echo "⚠️  WARNING: No token files found in data/ directory"
+            echo "The application will attempt to authenticate on first run"
+          fi
+
           # Download the latest docker-compose.yml
           curl -o docker-compose.yml https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.yml
 
-          # Create .env file from secrets
-          cat > .env << EOF
+          # Create .env file from secrets (atomic operation)
+          cat > .env.tmp << EOF
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
           GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
           GOOGLE_SHEETS_SPREADSHEET_ID=${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
@@ -119,13 +131,42 @@ except ImportError as e:
           TEST_MODE=false
           EOF
 
+          # Validate .env file was created successfully
+          if [ ! -s .env.tmp ]; then
+            echo "❌ ERROR: Failed to create .env file"
+            exit 1
+          fi
+
+          # Atomically replace .env
+          mv .env.tmp .env
+
           # Log in to GitHub Container Registry
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+          # Save current image tag for rollback
+          CURRENT_IMAGE=$(docker inspect fleetmanager --format='{{.Config.Image}}' 2>/dev/null || echo "none")
+          echo "Current image: $CURRENT_IMAGE"
 
           # Pull and run the latest image
           docker-compose pull
           docker-compose down
           docker-compose up -d
+
+          # Wait for container to be healthy
+          echo "Waiting for container to be healthy..."
+          sleep 5
+
+          # Verify container is running
+          if ! docker-compose ps | grep -q "Up"; then
+            echo "❌ ERROR: Container failed to start!"
+            echo "Attempting rollback..."
+            if [ "$CURRENT_IMAGE" != "none" ]; then
+              docker tag $CURRENT_IMAGE ghcr.io/valkozaur/fleetmanager:latest
+              docker-compose up -d
+            fi
+            docker-compose logs --tail=50
+            exit 1
+          fi
 
           # Clean up old images
           docker image prune -f

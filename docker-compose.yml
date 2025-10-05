@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   fleetmanager:
-    build: .
+    image: ghcr.io/valkozaur/fleetmanager:latest
     container_name: fleetmanager
     restart: unless-stopped
     env_file:
@@ -16,50 +16,18 @@ services:
     environment:
       - DATA_DIR=/app/data
       - GMAIL_CREDENTIALS_FILE=/app/credentials/credentials.json
-    networks:
-      - fleetmanager_network
-    # Optional: To enforce memory limits in non-Swarm mode, run with:
-    #   docker-compose up --memory="512M"
-    # The deploy.resources section is ignored by docker-compose in non-Swarm mode.
-
-  # Optional: Add cron service for automated execution
-  fleetmanager-cron:
-    build: .
-    container_name: fleetmanager-cron
-    restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - fleetmanager_data:/app/data
-      - fleetmanager_logs:/app/logs
-      - ./credentials:/app/credentials:ro
-    environment:
-      - DATA_DIR=/app/data
-      - GMAIL_CREDENTIALS_FILE=/app/credentials/credentials.json
-    networks:
-      - fleetmanager_network
-    command: >
-      sh -c "
-      # Install cron if not present
-      apt-get update && apt-get install -y cron &&
-      # Create cron job to run every 5 minutes
-      echo '*/5 * * * * cd /app && python src/orders/poller/main.py >> /app/logs/cron.log 2>&1' > /etc/cron.d/fleetmanager-cron &&
-      # Give execution rights on the cron job
-      chmod 0644 /etc/cron.d/fleetmanager-cron &&
-      # Apply cron job
-      crontab /etc/cron.d/fleetmanager-cron &&
-      # Start cron daemon
-      cron -f
-      "
-    depends_on:
-      - fleetmanager
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /app/credentials/credentials.json || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   fleetmanager_data:
     driver: local
   fleetmanager_logs:
     driver: local
-
-networks:
-  fleetmanager_network:
-    driver: bridge

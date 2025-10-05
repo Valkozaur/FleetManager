@@ -5,6 +5,15 @@ set -e
 
 echo "🚀 Manual deployment of FleetManager..."
 
+# Run validation first
+if [ -f "scripts/validate-deployment.sh" ]; then
+    echo "🔍 Running pre-deployment validation..."
+    if ! bash scripts/validate-deployment.sh; then
+        echo "❌ Validation failed. Please fix issues before deploying."
+        exit 1
+    fi
+fi
+
 # Check required files
 if [ ! -f ".env" ]; then
     echo "❌ .env file not found!"
@@ -25,7 +34,7 @@ git pull origin main
 # Build and deploy
 echo "🐳 Building and deploying Docker containers..."
 docker-compose down
-docker-compose build
+docker-compose pull
 docker-compose up -d
 
 # Wait for containers to start
@@ -46,6 +55,13 @@ if docker-compose ps | grep -q "Up"; then
     echo ""
     echo "📊 Container status:"
     docker-compose ps
+
+    # Run health check
+    echo ""
+    echo "🏥 Running health check..."
+    if [ -f "scripts/health-check.sh" ]; then
+        bash scripts/health-check.sh | head -20
+    fi
 else
     echo "❌ FleetManager failed to start!"
     echo "📋 Error logs:"
@@ -57,3 +73,4 @@ echo ""
 echo "🎉 Deployment completed successfully!"
 echo "💡 Use 'docker-compose logs -f' to follow logs"
 echo "💡 Use 'docker-compose down' to stop the application"
+echo "💡 Use 'bash scripts/health-check.sh' to check system health"
