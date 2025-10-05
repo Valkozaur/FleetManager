@@ -11,6 +11,7 @@ class ProcessingOrder(IntEnum):
     CLASSIFICATION = 1
     LOGISTICS_EXTRACTION = 2
     GEOCODING = 3
+    DATABASE_SAVE = 4
 
 
 class ProcessingResult:

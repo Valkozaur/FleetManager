@@ -17,11 +17,13 @@ from src.orders.poller.services.classifier import MailClassifier, MailClassifica
 from src.orders.poller.services.logistics_data_extract import LogisticsDataExtractor
 from src.orders.poller.clients.gmail_client import GmailClient
 from src.orders.poller.clients.google_maps_client import GoogleMapsClient
+from src.orders.poller.clients.google_sheets_client import GoogleSheetsClient
 from src.orders.poller.pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
 from src.orders.poller.pipeline.processing_context import ProcessingContext
 from src.orders.poller.pipeline.steps.classification_step import EmailClassificationStep
 from src.orders.poller.pipeline.steps.logistics_extraction_step import LogisticsExtractionStep
 from src.orders.poller.pipeline.steps.geocoding_step import GeocodingStep
+from src.orders.poller.pipeline.steps.database_save_step import DatabaseSaveStep
 
 # Load environment variables
 load_dotenv()
@@ -37,7 +39,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-def _create_processing_pipeline(classifier: MailClassifier, extractor: LogisticsDataExtractor, google_maps_client: GoogleMapsClient | None) -> ProcessingPipeline:
+def _create_processing_pipeline(classifier: MailClassifier, extractor: LogisticsDataExtractor, google_maps_client: GoogleMapsClient | None, sheets_client: GoogleSheetsClient | None) -> ProcessingPipeline:
     """Create and configure the processing pipeline with all steps"""
 
     # Create processing steps
@@ -49,6 +51,10 @@ def _create_processing_pipeline(classifier: MailClassifier, extractor: Logistics
     # Add geocoding step only if Google Maps client is available
     if google_maps_client:
         steps.append(GeocodingStep(google_maps_client))
+
+    # Add database save step only if Sheets client is available
+    if sheets_client:
+        steps.append(DatabaseSaveStep(sheets_client))
 
     return ProcessingPipeline(steps)
 
@@ -82,8 +88,26 @@ def run():
         google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
         google_maps_client = GoogleMapsClient(api_key=google_maps_api_key) if google_maps_api_key else None
 
+        # Initialize Google Sheets client for database operations
+        sheets_client = None
+        if os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID'):
+            try:
+                sheets_client = GoogleSheetsClient(
+                    credentials_file=os.getenv('GMAIL_CREDENTIALS_FILE', './credentials.json'),
+                    token_file='token_sheets.json'
+                )
+                if not sheets_client.authenticate():
+                    logger.warning("Failed to authenticate with Google Sheets API. Database saving will be disabled.")
+                    sheets_client = None
+                else:
+                    logger.info("Successfully authenticated with Google Sheets API")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Google Sheets client: {e}")
+        else:
+            logger.info("GOOGLE_SHEETS_SPREADSHEET_ID not set. Database saving will be disabled.")
+
         # Create processing pipeline
-        pipeline = _create_processing_pipeline(classifier, extractor, google_maps_client)
+        pipeline = _create_processing_pipeline(classifier, extractor, google_maps_client, sheets_client)
         logger.info(f"Created processing pipeline with {len(pipeline.steps)} steps")
 
         # Fetch unread emails
@@ -131,6 +155,8 @@ def run():
         # Cleanup clients
         if 'google_maps_client' in locals() and google_maps_client:
             google_maps_client.close()
+        if 'sheets_client' in locals() and sheets_client:
+            sheets_client.close()
         if 'extractor' in locals() and extractor:
             extractor.close()
         if 'classifier' in locals() and classifier:

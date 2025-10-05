@@ -12,6 +12,7 @@ FleetManager is a truck fleet management system that processes emails to extract
 
 - **Gmail Client** (`src/orders/poller/clients/gmail_client.py`): Handles OAuth 2.0 authentication with Gmail API and fetches emails with attachments
 - **Google Maps Client** (`src/orders/poller/clients/google_maps_client.py`): Provides geocoding services to convert addresses to coordinates
+- **Google Sheets Client** (`src/orders/poller/clients/google_sheets_client.py`): Saves extracted logistics data to Google Sheets as a database
 - **Email Classifier** (`src/orders/poller/services/classifier.py`): Uses Google Gemini API to classify emails as Order, Invoice, or Other
 - **Logistics Extractor** (`src/orders/poller/services/logistics_data_extract.py`): Extracts structured logistics data from order emails using Gemini API and fills missing coordinates with geocoding
 - **Email Models** (`src/orders/poller/models/email.py`, `src/orders/poller/models/logistics.py`): Pydantic models for email and logistics data structures
@@ -22,18 +23,22 @@ FleetManager is a truck fleet management system that processes emails to extract
 2. Each email is classified using Gemini API (`gemini-2.5-flash-lite-preview-09-2025`)
 3. For emails classified as "Order", logistics data is extracted (addresses, dates, cargo details, etc.)
 4. If coordinates are missing from extracted data, Google Maps Geocoding API is used to convert addresses to coordinates
-5. Complete logistics data with coordinates is returned as structured `LogisticsDataExtract` objects
+5. Complete logistics data with email identifiers is saved to Google Sheets database
+6. All data including email metadata (subject, sender, date) and logistics details are stored as rows
 
 ## Environment Setup
 
 ### Required Environment Variables
 - `GEMINI_API_KEY`: Google Gemini API key for AI classification and extraction
 - `GOOGLE_MAPS_API_KEY`: Google Maps API key for address geocoding
+- `GOOGLE_SHEETS_SPREADSHEET_ID`: Google Sheets spreadsheet ID for database storage
+- `GOOGLE_SHEETS_RANGE_NAME`: Sheet name and range (default: "Sheet1!A:Z")
 - `LOG_LEVEL`: Logging level (default: INFO)
 
 ### Required Files
 - `credentials.json`: Google Cloud OAuth 2.0 client credentials file
-- `token.json`: OAuth token file (auto-generated after first authentication)
+- `token.json`: OAuth token file for Gmail API (auto-generated after first authentication)
+- `token_sheets.json`: OAuth token file for Google Sheets API (auto-generated after first authentication)
 
 ### Python Dependencies
 Key dependencies include Google APIs, Gemini AI client, and Pydantic for data validation.
@@ -65,6 +70,13 @@ The Gmail client supports multiple authentication methods:
 - Supports both plain text and HTML email bodies
 - Handles file attachments and includes them in AI processing
 - Tracks last check timestamp to avoid processing duplicates
+
+### Google Sheets Database Integration
+- Automatically creates headers in the target Google Sheet if they don't exist
+- Stores both email identifiers and extracted logistics data in structured rows
+- Columns include: email_id, subject, sender, date, loading_address, unloading_address, loading_date, unloading_date, coordinates, cargo_description, weight, vehicle_type, special_requirements
+- Uses OAuth 2.0 authentication with separate token file for Sheets API
+- Graceful degradation if Google Sheets authentication or saving fails
 
 ### Error Handling
 - Graceful degradation when AI extraction fails
