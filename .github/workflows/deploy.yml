@@ -107,7 +107,7 @@ jobs:
       contents: read
       deployments: write
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: 
+    environment:
       name: production
     steps:
     - name: Checkout code
@@ -117,7 +117,7 @@ jobs:
       run: |
         mkdir -p /tmp/credentials
         echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > /tmp/credentials/credentials.json
-        
+
     - name: Deploy credentials to server
       uses: appleboy/scp-action@v0.1.7
       with:
