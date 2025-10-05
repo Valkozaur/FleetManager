@@ -33,18 +33,18 @@ jobs:
         # Add test commands here when you have them
         echo "Running basic import tests..."
         python -c "
-import sys
-sys.path.insert(0, '.')
-try:
-    from src.orders.poller.services.classifier import MailClassifier
-    from src.orders.poller.services.logistics_data_extract import LogisticsDataExtractor
-    from src.orders.poller.clients.gmail_client import GmailClient
-    from src.orders.poller.clients.google_maps_client import GoogleMapsClient
-    from src.orders.poller.clients.google_sheets_client import GoogleSheetsClient
-    print('All imports successful')
-except ImportError as e:
-    print(f'Import error: {e}')
-    sys.exit(1)
+          import sys
+          sys.path.insert(0, '.')
+          try:
+              from src.orders.poller.services.classifier import MailClassifier
+              from src.orders.poller.services.logistics_data_extract import LogisticsDataExtractor
+              from src.orders.poller.clients.gmail_client import GmailClient
+              from src.orders.poller.clients.google_maps_client import GoogleMapsClient
+              from src.orders.poller.clients.google_sheets_client import GoogleSheetsClient
+              print('All imports successful')
+          except ImportError as e:
+              print(f'Import error: {e}')
+              sys.exit(1)
         "
 
   build:
