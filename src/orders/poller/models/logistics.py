@@ -1,6 +1,8 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 class LogisticsDataExtract(BaseModel):
+    # Original logistics fields
     loading_address: str
     unloading_address: str
     loading_date: str
@@ -11,3 +13,9 @@ class LogisticsDataExtract(BaseModel):
     weight: str
     vehicle_type: str
     special_requirements: str | None = None
+
+    # Email identifier fields
+    email_id: str
+    email_subject: str
+    email_sender: str
+    email_date: datetime
