@@ -108,7 +108,7 @@ class DatabaseSaveStep(ProcessingStep):
         email = context.email
 
         # Update logistics data with email identifiers if not already present
-        if not hasattr(logistics, 'email_id'):
+        if logistics.email_id is None:
             # Create updated logistics data with email identifiers
             from ...models.logistics import LogisticsDataExtract
             updated_logistics = LogisticsDataExtract(
