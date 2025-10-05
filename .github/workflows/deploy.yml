@@ -118,6 +118,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: 
       name: production
