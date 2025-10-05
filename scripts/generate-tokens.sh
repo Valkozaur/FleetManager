@@ -25,8 +25,8 @@ if command -v docker &> /dev/null; then
 
     # Run container with interactive authentication
     docker run -it --rm \
-        -v $(pwd)/credentials:/app/credentials \
-        -v $(pwd)/data:/app/data \
+        -v "$(pwd)/credentials":/app/credentials \
+        -v "$(pwd)/data":/app/data \
         fleetmanager-auth \
         python -c "
 from src.orders.poller.clients.gmail_client import GmailClient
