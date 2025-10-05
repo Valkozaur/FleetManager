@@ -121,6 +121,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
+      secrets: inherit
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: 
       name: production
