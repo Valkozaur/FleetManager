@@ -1,44 +1,50 @@
 #!/bin/bash
 # FleetManager Manual Deployment Script
+# Deploys pre-built image from GitHub Container Registry
 
 set -e
 
-echo "🚀 Manual deployment of FleetManager..."
+echo "🚀 Deploying FleetManager from GitHub Container Registry..."
 
-# Run validation first
-if [ -f "scripts/validate-deployment.sh" ]; then
-    echo "🔍 Running pre-deployment validation..."
-    if ! bash scripts/validate-deployment.sh; then
-        echo "❌ Validation failed. Please fix issues before deploying."
-        exit 1
-    fi
+# Check if we're in the right directory
+if [ ! -d "credentials" ]; then
+    echo "❌ ERROR: credentials directory not found!"
+    echo "Please run this script from the fleetmanager directory"
+    echo "or create the credentials directory and add your credentials.json"
+    exit 1
 fi
 
 # Check required files
-if [ ! -f ".env" ]; then
-    echo "❌ .env file not found!"
-    echo "Please copy .env.example to .env and configure your settings"
-    exit 1
-fi
-
 if [ ! -f "credentials/credentials.json" ]; then
-    echo "❌ credentials/credentials.json not found!"
-    echo "Please download OAuth 2.0 credentials from Google Cloud Console"
+    echo "❌ ERROR: credentials/credentials.json not found!"
+    echo "Please add your OAuth 2.0 credentials to credentials/credentials.json"
     exit 1
 fi
 
-# Pull latest code
-echo "📥 Pulling latest code..."
-git pull origin main
+# Download latest docker-compose.yml if it doesn't exist
+if [ ! -f "docker-compose.yml" ]; then
+    echo "📥 Downloading docker-compose.yml..."
+    curl -o docker-compose.yml https://raw.githubusercontent.com/Valkozaur/FleetManager/main/docker-compose.yml
+fi
 
-# Build and deploy
-echo "🐳 Building and deploying Docker containers..."
-docker-compose down
+# Create .env file if it doesn't exist
+if [ ! -f ".env" ]; then
+    echo "⚠️  .env file not found!"
+    echo "Please create .env file with your API keys, or this deployment will fail"
+    echo "See DEPLOYMENT.md for required environment variables"
+    exit 1
+fi
+
+# Pull and deploy
+echo "� Pulling latest image from GitHub Container Registry..."
 docker-compose pull
+
+echo "� Starting FleetManager..."
+docker-compose down
 docker-compose up -d
 
 # Wait for containers to start
-echo "⏳ Waiting for containers to start..."
+echo "⏳ Waiting for container to start..."
 sleep 10
 
 # Check deployment status
@@ -73,4 +79,3 @@ echo ""
 echo "🎉 Deployment completed successfully!"
 echo "💡 Use 'docker-compose logs -f' to follow logs"
 echo "💡 Use 'docker-compose down' to stop the application"
-echo "💡 Use 'bash scripts/health-check.sh' to check system health"

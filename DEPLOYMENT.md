@@ -1,6 +1,18 @@
 # FleetManager Deployment Guide
 
-This guide covers deploying FleetManager to a Hetzner server using Docker containers with GitHub Actions CI/CD.
+This guide covers deploying FleetManager to a Hetzner server using Docker containers with automated GitHub Actions CI/CD.
+
+## 🚀 Quick Start
+
+**New to FleetManager?** Follow these three simple steps:
+
+1. **[Setup GitHub Secrets](#1-setup-github-secrets)** - 5 minutes
+2. **[Prepare Hetzner Server](#2-prepare-hetzner-server)** - 2 minutes  
+3. **[Deploy](#3-deploy)** - Automatic via Git push
+
+That's it! The CI/CD pipeline handles everything else.
+
+---
 
 ## Overview
 
@@ -10,422 +22,583 @@ FleetManager is a Gmail-based logistics order processing system that:
 - Extracts logistics data and geocodes addresses
 - Saves data to Google Sheets as a database
 
+**Deployment Architecture:**
+- **Docker**: Containerized application
+- **GitHub Actions**: Automated CI/CD pipeline
+- **GitHub Container Registry**: Docker image storage
+- **Hetzner Server**: Production environment (Docker pre-installed)
+
+---
+
 ## Prerequisites
+
+### Required Accounts & Resources
+
+- [ ] GitHub account with repository access
+- [ ] Google Cloud project with enabled APIs (Gmail, Sheets, Maps, Gemini)
+- [ ] Hetzner server with Docker pre-installed
+- [ ] SSH access to Hetzner server
 
 ### Google Cloud Setup
 
+**Need help?** See detailed guide in [SECRETS_SETUP.md](./SECRETS_SETUP.md)
+
 1. **Create Google Cloud Project**
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing one
+   - Create project: `FleetManager`
 
-2. **Enable APIs**
-   Enable these APIs in your Google Cloud project:
+2. **Enable Required APIs**
    - Gmail API
    - Google Sheets API
    - Google Maps Geocoding API
    - Google Gemini API
 
 3. **Create OAuth 2.0 Credentials**
-   - Go to "APIs & Services" → "Credentials"
-   - Click "Create Credentials" → "OAuth client ID"
-   - Select "Desktop app" as application type
-   - Download the credentials as `credentials.json`
+   - Application type: **Desktop app**
+   - Download `credentials.json`
 
-### API Keys Setup
+4. **Get API Keys**
+   - [Gemini API Key](https://aistudio.google.com/app/apikey)
+   - Google Maps API Key from Cloud Console
 
-1. **Google Gemini API Key**
-   - Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
-   - Create a new API key
-   - Store securely as environment variable
+---
 
-2. **Google Maps API Key**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Enable "Geocoding API"
-   - Create API key with restrictions
-   - Store securely as environment variable
+## Deployment Setup
 
-### Hetzner Server Setup
+### 1. Setup GitHub Secrets
 
-1. **Create Hetzner Server**
-   - Choose Ubuntu 22.04 or later
-   - Minimum 2GB RAM, 20GB storage
-   - Note the server IP address
+All sensitive data is stored securely in GitHub Secrets. No manual file uploads needed!
 
-2. **Initial Server Setup**
-   ```bash
-   # Connect to server
-   ssh root@your-server-ip
+**📚 Complete Guide:** [SECRETS_SETUP.md](./SECRETS_SETUP.md)
 
-   # Run setup script
-   curl -O https://raw.githubusercontent.com/your-username/FleetManager/main/scripts/setup-server.sh
-   chmod +x setup-server.sh
-   ./setup-server.sh
-   ```
+**Quick Setup:**
+
+Go to **Your Repository → Settings → Secrets and variables → Actions**
+
+Add these secrets:
+
+#### Server Connection
+```
+HETZNER_HOST          = Your server IP (e.g., 123.456.789.012)
+HETZNER_USER          = root
+HETZNER_SSH_KEY       = Your private SSH key (see setup guide)
+HETZNER_PORT          = 22 (optional)
+```
+
+#### Application Configuration
+```
+GOOGLE_CREDENTIALS_JSON           = Complete OAuth JSON from Google Cloud
+GEMINI_API_KEY                    = Your Gemini API key
+GOOGLE_MAPS_API_KEY               = Your Google Maps API key
+GOOGLE_SHEETS_SPREADSHEET_ID      = Your spreadsheet ID from URL
+GOOGLE_SHEETS_RANGE_NAME          = Sheet1!A:Z (optional)
+```
+
+**🔐 Security Note:** GitHub Secrets are encrypted and never exposed in logs.
+
+### 2. Prepare Hetzner Server
+
+**One-time setup** - Run this single command on your server:
+
+```bash
+# SSH to your Hetzner server
+ssh root@YOUR_SERVER_IP
+
+# Download and run setup script
+curl -fsSL https://raw.githubusercontent.com/Valkozaur/FleetManager/main/scripts/setup-server.sh | bash
+
+# That's it! Server is ready for deployment.
+```
+
+**What does this script do?**
+- ✅ Verifies Docker installation
+- ✅ Creates directory structure
+- ✅ Downloads deployment scripts
+- ✅ Sets up systemd service for auto-restart
+- ✅ Configures log rotation
+- ✅ Sets up automated backups
+- ✅ Configures proper permissions
+
+**The script is idempotent** - Safe to run multiple times and on multiple servers.
+
+### 3. Deploy
+
+**Option A: Automatic Deployment (Recommended)**
+
+Simply push to main branch:
+
+```bash
+git add .
+git commit -m "Deploy FleetManager"
+git push origin main
+```
+
+GitHub Actions automatically:
+1. ✅ Runs tests
+2. ✅ Builds optimized Docker image
+3. ✅ Scans for vulnerabilities
+4. ✅ Deploys credentials securely
+5. ✅ Updates environment variables
+6. ✅ Performs blue-green deployment
+7. ✅ Runs health checks
+8. ✅ Rolls back if issues detected
+
+**Monitor deployment:**
+- Go to **Actions** tab in GitHub
+- Watch real-time deployment progress
+- Review logs if needed
+
+**Option B: Manual Deployment**
+
+For testing or emergency deployments:
+
+```bash
+# SSH to server
+ssh root@YOUR_SERVER_IP
+
+# Navigate to deployment directory
+cd /root/fleetmanager
+
+# Run deployment script
+./scripts/deploy-manual.sh
+```
+
+---
+
+## What Happens During Deployment
+
+### CI/CD Pipeline Stages
+
+#### 1. **Test Stage** (2-3 minutes)
+- Sets up Python environment
+- Installs dependencies
+- Runs import tests
+- Validates code structure
+
+#### 2. **Build Stage** (3-5 minutes)
+- Multi-stage Docker build for optimization
+- Layer caching for faster builds
+- Pushes to GitHub Container Registry
+- Security vulnerability scanning
+- Tags image with commit SHA and 'latest'
+
+#### 3. **Deploy Stage** (2-3 minutes)
+- Securely transfers credentials to server
+- Downloads latest docker-compose.yml
+- Creates .env file from secrets
+- Pulls new Docker image
+- Blue-green deployment:
+  - Renames old container
+  - Starts new container
+  - Health checks (6 attempts, 10s intervals)
+  - Removes old container on success
+  - Automatic rollback on failure
+- Cleanup of old images
+
+#### 4. **Health Check Stage** (30 seconds)
+- Verifies container is running
+- Checks container health status
+- Validates credentials accessibility
+- Runs comprehensive health script
+
+**Total deployment time: ~8-12 minutes**
+
+---
 
 ## Authentication Setup
 
-### Option 1: Local Token Generation (Recommended)
+### OAuth Token Generation
 
-Generate OAuth tokens locally and deploy them to the server:
+FleetManager needs OAuth tokens for Gmail and Google Sheets access.
 
-1. **Clone Repository Locally**
-   ```bash
-   git clone https://github.com/your-username/FleetManager.git
-   cd FleetManager
-   ```
+**Option 1: Automatic (Headless) - Recommended**
 
-2. **Set Up Credentials**
-   ```bash
-   mkdir -p credentials
-   # Copy your downloaded credentials.json to credentials/
-   cp /path/to/credentials.json credentials/
-   ```
+The application will automatically handle OAuth flow on first run if tokens don't exist.
 
-3. **Generate Tokens**
-   ```bash
-   chmod +x scripts/generate-tokens.sh
-   ./scripts/generate-tokens.sh
-   ```
-   This will:
-   - Open a browser for Gmail authentication
-   - Generate `data/token.json` for Gmail API
-   - Generate `data/token_sheets.json` for Google Sheets API
-
-4. **Deploy Tokens to Server**
-   ```bash
-   # Copy generated tokens to server
-   scp -r data/ root@your-server-ip:~/fleetmanager/
-   scp -r credentials/ root@your-server-ip:~/fleetmanager/
-   ```
-
-### Option 2: Headless Authentication
-
-For server environments without browsers:
-
-1. **Generate Authorization URL**
-   ```bash
-   python3 -c "
-from src.orders.poller.clients.gmail_client import GmailClient
-client = GmailClient(credentials_file='credentials/credentials.json')
-url = client.generate_auth_url()
-print(f'Visit this URL: {url}')
-print('Copy the authorization code and save it to data/auth_code.txt')
-"
-   ```
-
-2. **Save Authorization Code**
-   ```bash
-   mkdir -p data
-   echo "YOUR_AUTH_CODE_HERE" > data/auth_code.txt
-   ```
-
-3. **Deploy and Run**
-   ```bash
-   # Deploy to server
-   scp -r data/ root@your-server-ip:~/fleetmanager/
-   scp -r credentials/ root@your-server-ip:~/fleetmanager/
-
-   # Container will automatically exchange code for tokens
-   ```
-
-## GitHub Actions CI/CD Setup
-
-### Repository Secrets
-
-Set these secrets in your GitHub repository (Settings → Secrets and variables → Actions):
+**Option 2: Generate Locally and Upload**
 
 ```bash
-# Required Secrets
-GITHUB_TOKEN=                    # Automatically provided by GitHub
-HETZNER_HOST=your-server-ip
-HETZNER_USER=root
-HETZNER_SSH_KEY=-----BEGIN OPENSSH PRIVATE KEY-----
-... your private SSH key ...
------END OPENSSH PRIVATE KEY-----
+# Clone repository locally
+git clone https://github.com/Valkozaur/FleetManager.git
+cd FleetManager
 
-# API Keys
-GEMINI_API_KEY=your_gemini_api_key
-GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-GOOGLE_SHEETS_SPREADSHEET_ID=your_spreadsheet_id
-GOOGLE_SHEETS_RANGE_NAME=Sheet1!A:Z
+# Add credentials
+mkdir -p credentials
+cp /path/to/credentials.json credentials/
 
-# Optional Secrets
-HETZNER_PORT=22                  # SSH port (default: 22)
+# Generate tokens (opens browser)
+chmod +x scripts/generate-tokens.sh
+./scripts/generate-tokens.sh
+
+# Upload to server
+scp -r data/token*.json root@YOUR_SERVER_IP:/root/fleetmanager/data/
 ```
 
-### SSH Key Setup
+---
 
-1. **Generate SSH Key Pair**
-   ```bash
-   ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/fleetmanager_deploy
-   ```
+## Post-Deployment
 
-2. **Add Public Key to Server**
-   ```bash
-   cat ~/.ssh/fleetmanager_deploy.pub | ssh root@your-server-ip "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
-   ```
-
-3. **Add Private Key to GitHub Secrets**
-   ```bash
-   cat ~/.ssh/fleetmanager_deploy
-   # Copy output and add as HETZNER_SSH_KEY secret
-   ```
-
-## Deployment Methods
-
-### Method 1: Automatic CI/CD (Recommended)
-
-1. **Push to Main Branch**
-   ```bash
-   git add .
-   git commit -m "Deploy FleetManager to production"
-   git push origin main
-   ```
-
-2. **Monitor Deployment**
-   - Go to "Actions" tab in GitHub
-   - Watch the deployment workflow
-   - Check logs for any issues
-
-### Method 2: Manual Deployment
-
-1. **Connect to Server**
-   ```bash
-   ssh root@your-server-ip
-   cd ~/fleetmanager
-   ```
-
-2. **Run Pre-deployment Validation**
-   ```bash
-   bash scripts/validate-deployment.sh
-   ```
-
-3. **Deploy Manually**
-   ```bash
-   bash scripts/deploy-manual.sh
-   ```
-
-## Post-Deployment Setup
-
-### Set Up Automated Execution
-
-After deployment, set up cron for automated email polling:
+### Verify Deployment
 
 ```bash
-# Set up cron job (runs every 5 minutes)
-bash scripts/setup-cron.sh
+# SSH to server
+ssh root@YOUR_SERVER_IP
 
-# Verify cron is working
-crontab -l | grep fleetmanager
-```
-
-### Set Up Monitoring
-
-```bash
-# Run health check
-bash scripts/health-check.sh
-
-# Set up automated health monitoring (optional)
-echo "*/30 * * * * ~/fleetmanager/scripts/health-check.sh" | crontab -
-```
-
-### Set Up Backups
-
-```bash
-# Create initial backup
-bash scripts/backup.sh
-
-# Set up automated daily backups (optional)
-echo "0 2 * * * ~/fleetmanager/scripts/backup.sh" | crontab -
-```
-
-## Configuration
-
-### Environment Variables
-
-Edit `.env` file on the server:
-
-```bash
-# Required API Keys
-GEMINI_API_KEY=your_gemini_api_key
-GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-GOOGLE_SHEETS_SPREADSHEET_ID=your_spreadsheet_id
-
-# Gmail API Configuration
-GMAIL_CREDENTIALS_FILE=/app/credentials/credentials.json
-
-# Application Settings
-DATA_DIR=/app/data
-LOG_LEVEL=INFO
-
-# Testing (optional)
-TEST_MODE=false
-TEST_EMAIL_QUERY=
-```
-
-### Google Sheets Setup
-
-1. **Create Google Sheet**
-   - Create a new Google Sheet
-   - Note the spreadsheet ID from the URL
-
-2. **Share with Service Account**
-   - The OAuth tokens will automatically handle access
-   - Ensure the sheet is accessible to the authenticated account
-
-## Monitoring and Maintenance
-
-### Check Application Status
-
-```bash
-# Check if containers are running
+# Check container status
+cd /root/fleetmanager
 docker-compose ps
 
 # View logs
 docker-compose logs -f
 
-# Check container health
-docker inspect fleetmanager | grep Health -A 10
+# Run health check
+./scripts/health-check.sh
 ```
 
-### Log Management
+### Setup Automated Tasks (Optional)
+
+The setup script already configured these, but you can customize:
 
 ```bash
-# View logs
+# View current cron jobs
+crontab -l
+
+# Edit cron jobs
+crontab -e
+
+# Default setup includes:
+# - Daily backups at 2 AM
+```
+
+### Monitor Application
+
+```bash
+# Follow logs in real-time
 docker-compose logs -f
 
-# View logs from last hour
-docker-compose logs --since=1h
+# View last 100 lines
+docker-compose logs --tail=100
 
-# View error logs only
-docker-compose logs | grep ERROR
+# Check container stats
+docker stats fleetmanager
 
-# Check cron logs
-tail -f ~/fleetmanager/logs/cron.log
-
-# Manual log rotation
-sudo logrotate -f /etc/logrotate.d/fleetmanager
+# Run health check
+./scripts/health-check.sh
 ```
 
-### Backup Strategy
+---
+
+## Configuration
+
+### Environment Variables
+
+Managed automatically via GitHub Secrets. To modify:
+
+1. Update secrets in GitHub repository
+2. Push to main branch
+3. New deployment uses updated values
+
+**Available variables:**
+```bash
+GEMINI_API_KEY                    # Required: Gemini API key
+GOOGLE_MAPS_API_KEY               # Required: Maps API key
+GOOGLE_SHEETS_SPREADSHEET_ID      # Required: Sheet ID
+GOOGLE_SHEETS_RANGE_NAME          # Optional: Default Sheet1!A:Z
+GMAIL_CREDENTIALS_FILE            # Auto-set: /app/credentials/credentials.json
+DATA_DIR                          # Auto-set: /app/data
+LOG_LEVEL                         # Auto-set: INFO
+TEST_MODE                         # Auto-set: false
+```
+
+### Google Sheets Setup
+
+1. Create Google Sheet for logistics data
+2. Get spreadsheet ID from URL:
+   ```
+   https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit
+   ```
+3. Add to GitHub Secrets as `GOOGLE_SHEETS_SPREADSHEET_ID`
+4. Share sheet with authenticated Google account
+
+---
+
+## Advanced Topics
+
+### Replicate to Another Server
+
+The streamlined setup makes replication trivial:
 
 ```bash
-# Create backup
-bash scripts/backup.sh
+# 1. On new server, run setup script
+ssh root@NEW_SERVER_IP
+curl -fsSL https://raw.githubusercontent.com/Valkozaur/FleetManager/main/scripts/setup-server.sh | bash
 
-# List available backups
-ls -lh ~/fleetmanager-backups/
+# 2. Update GitHub Secrets with new server IP
+# HETZNER_HOST=NEW_SERVER_IP
 
-# Restore from backup
-cd ~/fleetmanager
+# 3. Push to trigger deployment
+git push origin main
+
+# Done! New server is configured and running.
+```
+
+### Blue-Green Deployment
+
+The CI/CD pipeline implements zero-downtime deployments:
+
+1. **Blue (Current)**: Running container serves traffic
+2. **Green (New)**: New container starts and passes health checks
+3. **Switch**: Old container stops, new container takes over
+4. **Rollback**: If health checks fail, old container restores
+
+### Rollback to Previous Version
+
+**Automatic rollback** happens if health checks fail during deployment.
+
+**Manual rollback:**
+
+```bash
+# SSH to server
+ssh root@YOUR_SERVER_IP
+cd /root/fleetmanager
+
+# View deployment history
+tail -50 logs/deployments.log
+
+# Pull specific image version
+docker pull ghcr.io/valkozaur/fleetmanager:main-abc123
+
+# Update docker-compose.yml to use specific tag
+# Change: image: ghcr.io/valkozaur/fleetmanager:latest
+# To: image: ghcr.io/valkozaur/fleetmanager:main-abc123
+
+# Deploy
 docker-compose down
-tar -xzf ~/fleetmanager-backups/fleetmanager_20241201_020000.tar.gz
 docker-compose up -d
 ```
 
-### Update Application
+### Multi-Environment Setup
 
-```bash
-# Pull latest version
-cd ~/fleetmanager
-git pull origin main
+Deploy to multiple environments (staging, production):
 
-# Redeploy
-./scripts/deploy-manual.sh
-```
+1. **Create branches:**
+   ```bash
+   git checkout -b staging
+   git checkout -b production
+   ```
+
+2. **Update workflow** to deploy different branches to different servers
+
+3. **Use GitHub Environments** for approval gates
+
+---
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Authentication Failed**
-   ```bash
-   # Check token files exist
-   ls -la data/token*.json
+#### 1. **Deployment Fails at SSH Connection**
 
-   # Check credentials file
-   ls -la credentials/credentials.json
+**Error:** `Permission denied (publickey)`
 
-   # Regenerate tokens if needed
-   ./scripts/generate-tokens.sh
-   ```
+**Solution:**
+```bash
+# Verify SSH key is correct
+cat ~/.ssh/fleetmanager_deploy.pub | ssh root@YOUR_SERVER_IP "cat >> ~/.ssh/authorized_keys"
 
-2. **Container Won't Start**
-   ```bash
-   # Check container logs
-   docker-compose logs fleetmanager
+# Test connection
+ssh -i ~/.ssh/fleetmanager_deploy root@YOUR_SERVER_IP
 
-   # Check environment variables
-   docker-compose exec fleetmanager env | grep -E "(API_KEY|SPREADSHEET)"
-   ```
+# Verify GitHub Secret has complete private key (including BEGIN/END lines)
+```
 
-3. **API Quota Exceeded**
-   - Check Google Cloud Console quotas
-   - Upgrade API quotas if needed
-   - Reduce polling frequency
+**See:** [SECRETS_SETUP.md - SSH Troubleshooting](./SECRETS_SETUP.md#ssh-key-configuration)
 
-4. **Gmail/Google Sheets Permissions**
-   - Ensure OAuth tokens have correct scopes
-   - Re-authenticate if permissions changed
-   - Check Google account security settings
+#### 2. **Container Fails Health Check**
+
+**Error:** `Container health check failed after 6 attempts`
+
+**Solution:**
+```bash
+# SSH to server and check logs
+ssh root@YOUR_SERVER_IP
+cd /root/fleetmanager
+docker-compose logs
+
+# Common causes:
+# - Missing credentials.json
+# - Invalid .env variables
+# - API quota exceeded
+# - Network connectivity issues
+
+# Verify credentials file
+ls -la credentials/credentials.json
+
+# Check environment variables
+docker-compose exec fleetmanager env | grep API
+```
+
+#### 3. **Authentication Failed**
+
+**Error:** `Invalid credentials` or `Token refresh failed`
+
+**Solution:**
+```bash
+# Regenerate tokens locally
+./scripts/generate-tokens.sh
+
+# Upload to server
+scp data/token*.json root@YOUR_SERVER_IP:/root/fleetmanager/data/
+
+# Restart container
+ssh root@YOUR_SERVER_IP "cd /root/fleetmanager && docker-compose restart"
+```
+
+#### 4. **API Quota Exceeded**
+
+**Error:** `429 Too Many Requests` or `Quota exceeded`
+
+**Solution:**
+- Check Google Cloud Console for API quotas
+- Upgrade quotas if needed (usually free tier is sufficient)
+- Reduce polling frequency in application settings
+- Review API usage patterns
+
+#### 5. **Build Stage Fails**
+
+**Error:** `Failed to build Docker image`
+
+**Solution:**
+```bash
+# Test build locally
+docker build -t fleetmanager:test .
+
+# Check for dependency issues
+pip install -r requirements.txt
+
+# Verify Python version compatibility (3.13)
+```
 
 ### Debug Mode
 
-Enable debug logging:
+Enable detailed logging:
 
+**In GitHub Secrets, add:**
+```
+ACTIONS_STEP_DEBUG = true
+```
+
+**On server:**
 ```bash
 # Edit .env
-echo "LOG_LEVEL=DEBUG" >> .env
+echo "LOG_LEVEL=DEBUG" >> /root/fleetmanager/.env
 
 # Restart container
-docker-compose restart fleetmanager
+docker-compose restart
 ```
 
-### Performance Monitoring
+### Get Help
+
+1. **Check deployment logs:**
+   - GitHub Actions → Latest workflow run
+   - Server: `docker-compose logs`
+
+2. **Review documentation:**
+   - [SECRETS_SETUP.md](./SECRETS_SETUP.md) - Secrets configuration
+   - [README.md](./README.md) - Application overview
+
+3. **Validate setup:**
+   ```bash
+   ssh root@YOUR_SERVER_IP
+   cd /root/fleetmanager
+   ./scripts/validate-deployment.sh
+   ```
+
+4. **Open GitHub Issue** with:
+   - Deployment logs
+   - Container logs
+   - Error messages
+   - Steps to reproduce
+
+---
+
+## Monitoring and Maintenance
+
+### Application Health
 
 ```bash
-# Monitor resource usage
+# SSH to server
+ssh root@YOUR_SERVER_IP
+cd /root/fleetmanager
+
+# Check container status
+docker-compose ps
+
+# View live logs
+docker-compose logs -f
+
+# Run comprehensive health check
+./scripts/health-check.sh
+
+# Check resource usage
 docker stats fleetmanager
-
-# Run health check
-bash scripts/health-check.sh
-
-# Check disk space
-df -h
-
-# Monitor network connectivity
-ping gmail.com
-
-# Check container health
-docker inspect fleetmanager | grep Health -A 10
 ```
 
-## Security Considerations
+### Log Management
 
-1. **Credential Security**
-   - Never commit API keys to version control
-   - Use GitHub Secrets for production
-   - Regularly rotate API keys
+Logs are automatically rotated daily (configured during setup).
 
-2. **Container Security**
-   - Run as non-root user (configured in Dockerfile)
-   - Use read-only filesystem where possible
-   - Keep base images updated
+```bash
+# View recent logs
+docker-compose logs --tail=100
 
-3. **Network Security**
-   - Use SSH keys for authentication
-   - Configure firewall rules
-   - Use HTTPS for all API calls
+# View logs from last hour
+docker-compose logs --since=1h
 
-4. **Data Privacy**
-   - Gmail content is processed by Google Gemini API
-   - Review Google's data processing policies
-   - Consider privacy implications for your organization
+# Filter error logs
+docker-compose logs | grep -i error
 
-## Support
+# Check deployment history
+cat logs/deployments.log
 
-For issues and questions:
-- Check GitHub Issues
-- Review application logs
-- Verify API configurations
-- Test authentication setup
+# Check health check history
+cat logs/health.log
+```
+
+### Backup and Restore
+
+Automated daily backups run at 2 AM (configured during setup).
+
+**Manual backup:**
+```bash
+./scripts/backup.sh
+```
+
+**List backups:**
+```bash
+ls -lh ~/fleetmanager-backups/
+```
+
+**Restore from backup:**
+```bash
+cd /root/fleetmanager
+docker-compose down
+
+# Extract backup
+tar -xzf ~/fleetmanager-backups/fleetmanager_YYYYMMDD_HHMMSS.tar.gz
+
+# Restart
+docker-compose up -d
+```
+
+### Update Application
+
+Automatic updates via GitHub Actions (just push to main).
+
+**Manual update:**
+```bash
+cd /root/fleetmanager
+./scripts/deploy-manual.sh
+```
+
+---
