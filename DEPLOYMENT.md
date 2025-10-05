@@ -310,6 +310,70 @@ LOG_LEVEL                         # Auto-set: INFO
 TEST_MODE                         # Auto-set: false
 ```
 
+### Mail (Postfix) guidance
+
+FleetManager uses the Gmail API (OAuth) to read emails and does not send outgoing application email via the local system MTA. Because the app accesses Gmail via the API (`src/orders/poller/clients/gmail_client.py`), you do not need Postfix for the application to function.
+
+Recommended action when the Debian/Ubuntu Postfix configuration dialog appears during package installation:
+- Choose "No configuration" to leave the system MTA unchanged (recommended), or skip installing Postfix entirely.
+
+If you want to install Postfix for system-level notifications but avoid interactive prompts, here are non-interactive examples.
+
+Preseed Postfix to select "No configuration" and install non-interactively:
+
+```bash
+# Preseed Postfix to select "No configuration"
+sudo debconf-set-selections <<'DEB'
+postfix postfix/main_mailer_type select No configuration
+DEB
+
+# Install without interactive prompts
+sudo DEBIAN_FRONTEND=noninteractive apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get -y install postfix
+```
+
+Preseed for "Local only":
+
+```bash
+sudo debconf-set-selections <<'DEB'
+postfix postfix/main_mailer_type select Local only
+DEB
+
+sudo DEBIAN_FRONTEND=noninteractive apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get -y install postfix
+```
+
+Preseed for "Internet with smarthost" (you'll still need to configure relayhost and authentication afterwards):
+
+```bash
+sudo debconf-set-selections <<'DEB'
+postfix postfix/main_mailer_type select 'Internet with smarthost'
+DEB
+
+sudo DEBIAN_FRONTEND=noninteractive apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get -y install postfix
+
+# Example manual steps after install to set relayhost (replace with your relay):
+# sudo postconf -e "relayhost = [smtp.example.com]:587"
+# echo "[smtp.example.com]:587    username:password" | sudo tee /etc/postfix/sasl_passwd
+# sudo postmap /etc/postfix/sasl_passwd
+# sudo chown root:root /etc/postfix/sasl_passwd*
+# sudo systemctl reload postfix
+```
+
+Change Postfix configuration interactively later with:
+
+```bash
+sudo dpkg-reconfigure postfix
+```
+
+Or remove Postfix entirely:
+
+```bash
+sudo apt-get remove --purge -y postfix
+sudo apt-get autoremove -y
+```
+
 ### Google Sheets Setup
 
 1. Create Google Sheet for logistics data

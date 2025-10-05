@@ -38,6 +38,16 @@ if [ "$EUID" -eq 0 ]; then
     print_warning "Running as root. It's recommended to run as a regular user."
 fi
 
+# Preseed Postfix to avoid interactive config prompts during package installs
+# This sets the default to "No configuration" so apt installs won't block on Postfix.
+if command -v debconf-set-selections &> /dev/null; then
+    echo "Preseeding Postfix to 'No configuration' to avoid interactive prompts..."
+    sudo debconf-set-selections <<'DEB'
+postfix postfix/main_mailer_type select No configuration
+DEB
+    print_status "Preseeded Postfix debconf (No configuration)"
+fi
+
 # 1. Verify Docker is installed
 echo "📦 Checking Docker installation..."
 if ! command -v docker &> /dev/null; then
@@ -105,6 +115,18 @@ done
 echo "🔧 Setting up systemd service..."
 SYSTEMD_SERVICE="/etc/systemd/system/fleetmanager.service"
 
+# Choose the appropriate docker-compose command (binary or plugin)
+DOCKER_COMPOSE_CMD=""
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD=$(command -v docker-compose)
+elif docker compose version &> /dev/null; then
+    # Use docker CLI with compose subcommand
+    DOCKER_COMPOSE_CMD="$(command -v docker) compose"
+else
+    # Fallback to expected install location
+    DOCKER_COMPOSE_CMD="/usr/local/bin/docker-compose"
+fi
+
 if [ ! -f "$SYSTEMD_SERVICE" ]; then
     sudo tee "$SYSTEMD_SERVICE" > /dev/null <<EOF
 [Unit]
@@ -116,8 +138,8 @@ Requires=docker.service
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=$DEPLOY_DIR
-ExecStart=/usr/local/bin/docker-compose up -d
-ExecStop=/usr/local/bin/docker-compose down
+ExecStart=$DOCKER_COMPOSE_CMD up -d
+ExecStop=$DOCKER_COMPOSE_CMD down
 User=$USER
 
 [Install]
