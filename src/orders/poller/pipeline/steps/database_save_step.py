@@ -136,7 +136,7 @@ class DatabaseSaveStep(ProcessingStep):
             "email_id": logistics.email_id,
             "email_subject": logistics.email_subject,
             "email_sender": logistics.email_sender,
-            "email_date": logistics.email_date.isoformat(),
+            "email_date": logistics.email_date.isoformat() if logistics.email_date else "",
             "loading_address": logistics.loading_address,
             "unloading_address": logistics.unloading_address,
             "loading_date": logistics.loading_date,
