@@ -210,3 +210,4 @@ __marimo__/
 /.claude
 credentials.json
 token.json
+token_sheets.json
