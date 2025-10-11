@@ -45,8 +45,15 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code with proper ownership
-COPY --chown=appuser:appuser src/ ./src/
-COPY --chown=appuser:appuser .env.example /app/.env.example
+# Copying the whole build context. If `.env.example` is present in the context
+# it will be included by the previous COPY; if it's not present (e.g. when
+# building with the service folder as the context) create an empty example
+# file so the subsequent steps don't fail.
+COPY --chown=appuser:appuser . .
+
+# Ensure an example env file exists inside the image. This avoids failing the
+# build when the source `.env.example` is outside the build context.
+RUN if [ ! -f /app/.env.example ]; then touch /app/.env.example; fi
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/data /app/logs /app/credentials && \
