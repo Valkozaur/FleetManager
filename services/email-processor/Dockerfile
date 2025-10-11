@@ -45,7 +45,7 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code with proper ownership
-COPY --chown=appuser:appuser src/ ./src/
+COPY --chown=appuser:appuser . .
 COPY --chown=appuser:appuser .env.example /app/.env.example
 
 # Create necessary directories with proper permissions
