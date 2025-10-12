@@ -7,7 +7,7 @@ services:
     container_name: fleetmanager-email-processor
     restart: unless-stopped
     env_file:
-      - ../../.env.production
+      - /opt/fleetmanager/.env.production
     volumes:
       # Persist data and tokens
       - fleetmanager_data:/app/data
@@ -17,7 +17,6 @@ services:
     environment:
       - DATA_DIR=/app/data
       - GMAIL_CREDENTIALS_FILE=/app/credentials/credentials.json
-      - LOG_LEVEL=INFO
     mem_limit: 512m
     mem_reservation: 256m
     cpus: 1.0

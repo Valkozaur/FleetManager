@@ -104,6 +104,12 @@ jobs:
           HETZNER_FIREWALL_TOKEN: ${{ secrets.HETZNER_FIREWALL_TOKEN }}
           HETZNER_FIREWALL_ID: ${{ secrets.HETZNER_FIREWALL_ID }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+          # Application secrets
+          GOOGLE_GEMINI_API_KEY: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
+          GOOGLE_SHEETS_SPREADSHEET_ID: ${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          GMAIL_CHECK_INTERVAL: ${{ secrets.GMAIL_CHECK_INTERVAL || '300' }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'INFO' }}
         run: |
           chmod +x ./scripts/deploy-to-hetzner.sh
           ./scripts/deploy-to-hetzner.sh
@@ -111,7 +117,7 @@ jobs:
       - name: Verify deployment
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
-            "cd /opt/fleetmanager && docker-compose ps email-processor"
+            "cd /opt/fleetmanager && docker-compose -f infrastructure/docker/docker-compose.prod.yml ps email-processor"
 
       - name: Notify deployment status
         if: always()
