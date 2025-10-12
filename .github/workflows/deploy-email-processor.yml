@@ -101,10 +101,20 @@ jobs:
 
       - name: Set up SSH key
         run: |
+          set -e
           mkdir -p ~/.ssh
+          if [ -z "${{ secrets.HETZNER_SSH_KEY }}" ]; then
+            echo "Error: HETZNER_SSH_KEY secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.HETZNER_HOST }}" ]; then
+            echo "Error: HETZNER_HOST secret is not set"
+            exit 1
+          fi
           echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+          echo "SSH key setup completed successfully"
 
       - name: Deploy to Hetzner
         env:
