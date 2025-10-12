@@ -6,8 +6,9 @@ set -euo pipefail
 #
 # This script handles secure deployment to Hetzner servers by:
 # 1. Temporarily adding GitHub Actions runner IP to Hetzner firewall
-# 2. SSHing into the server to pull and deploy new Docker images
-# 3. Removing the IP from the firewall after deployment
+# 2. Creating .env.production from GitHub Secrets
+# 3. SSHing into the server to pull and deploy new Docker images
+# 4. Removing the IP from the firewall after deployment
 #
 # Required environment variables:
 #   HETZNER_HOST              - Server hostname or IP
@@ -15,6 +16,11 @@ set -euo pipefail
 #   HETZNER_FIREWALL_TOKEN    - Hetzner Cloud API token
 #   HETZNER_FIREWALL_ID       - Hetzner firewall ID
 #   IMAGE_TAG                 - Docker image tag to deploy (optional)
+#   GOOGLE_GEMINI_API_KEY     - Gemini API key
+#   GOOGLE_SHEETS_SPREADSHEET_ID - Google Sheets spreadsheet ID
+#   GOOGLE_MAPS_API_KEY       - Google Maps API key (optional)
+#   GMAIL_CHECK_INTERVAL      - Gmail check interval (default: 300)
+#   LOG_LEVEL                 - Log level (default: INFO)
 ###############################################################################
 
 # Color output
@@ -31,6 +37,13 @@ readonly HETZNER_FIREWALL_ID="${HETZNER_FIREWALL_ID:?Error: HETZNER_FIREWALL_ID 
 readonly IMAGE_TAG="${IMAGE_TAG:-latest}"
 readonly DEPLOYMENT_DIR="/opt/fleetmanager"
 readonly API_BASE="https://api.hetzner.cloud/v1"
+
+# Application configuration
+readonly GOOGLE_GEMINI_API_KEY="${GOOGLE_GEMINI_API_KEY:?Error: GOOGLE_GEMINI_API_KEY is required}"
+readonly GOOGLE_SHEETS_SPREADSHEET_ID="${GOOGLE_SHEETS_SPREADSHEET_ID:?Error: GOOGLE_SHEETS_SPREADSHEET_ID is required}"
+readonly GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY:-}"
+readonly GMAIL_CHECK_INTERVAL="${GMAIL_CHECK_INTERVAL:-300}"
+readonly LOG_LEVEL="${LOG_LEVEL:-INFO}"
 
 # Track whether we added a rule (for cleanup)
 FIREWALL_RULE_ADDED=false
@@ -154,6 +167,61 @@ cleanup() {
     exit $exit_code
 }
 
+# Create .env.production file on server
+create_env_file() {
+    log_info "Creating .env.production from GitHub Secrets"
+    
+    # Create environment file content
+    local env_content
+    env_content=$(cat <<EOF
+# Production Environment Configuration
+# Auto-generated from GitHub Secrets on $(date -u +%Y-%m-%dT%H:%M:%SZ)
+# DO NOT EDIT MANUALLY - Changes will be overwritten on next deployment
+
+# =============================================================================
+# Gmail Configuration
+# =============================================================================
+GMAIL_CREDENTIALS_FILE=/app/credentials/credentials.json
+GMAIL_CHECK_INTERVAL=${GMAIL_CHECK_INTERVAL}
+
+# =============================================================================
+# Google Gemini AI Configuration
+# =============================================================================
+GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
+
+# =============================================================================
+# Google Sheets Configuration
+# =============================================================================
+GOOGLE_SHEETS_SPREADSHEET_ID=${GOOGLE_SHEETS_SPREADSHEET_ID}
+
+# =============================================================================
+# Google Maps Configuration
+# =============================================================================
+GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+
+# =============================================================================
+# Application Configuration
+# =============================================================================
+LOG_LEVEL=${LOG_LEVEL}
+TEST_MODE=false
+DATA_DIR=/app/data
+
+# =============================================================================
+# Docker Configuration
+# =============================================================================
+COMPOSE_PROJECT_NAME=fleetmanager
+EOF
+)
+    
+    # Write to server
+    ssh -o StrictHostKeyChecking=no \
+        -o ConnectTimeout=10 \
+        "$HETZNER_USER@$HETZNER_HOST" \
+        "cat > ${DEPLOYMENT_DIR}/.env.production && chmod 600 ${DEPLOYMENT_DIR}/.env.production" <<< "$env_content"
+    
+    log_info "Environment file created successfully"
+}
+
 # Deploy to server via SSH
 deploy_to_server() {
     log_info "Connecting to $HETZNER_USER@$HETZNER_HOST"
@@ -213,6 +281,9 @@ main() {
     
     # Add firewall rule
     add_firewall_rule "$CURRENT_IP"
+    
+    # Create environment file
+    create_env_file
     
     # Deploy to server
     deploy_to_server
