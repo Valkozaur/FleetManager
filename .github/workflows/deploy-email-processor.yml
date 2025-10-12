@@ -28,7 +28,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/fleetmanager-email-processor
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push:
@@ -50,19 +50,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Convert repository owner to lowercase
-        id: repo-owner
-        run: |
-          echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Debug registry information
-        run: |
-          echo "Registry: ${{ env.REGISTRY }}"
-          echo "Repository owner (original): ${{ github.repository_owner }}"
-          echo "Repository owner (lowercase): ${{ steps.repo-owner.outputs.owner }}"
-          echo "Actor: ${{ github.actor }}"
-          echo "Image will be: ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/fleetmanager-email-processor"
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -74,7 +61,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/fleetmanager-email-processor
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -96,7 +83,7 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ steps.repo-owner.outputs.owner }}/fleetmanager-email-processor
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
