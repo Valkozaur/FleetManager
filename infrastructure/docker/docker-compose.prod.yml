@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  email-processor:
+    image: ghcr.io/valkozaur/fleetmanager-email-processor:latest
+    restart: always
+
+  api-gateway:
+    image: ghcr.io/valkozaur/fleetmanager-api-gateway:latest
+    restart: always
+    ports:
+      - '8080:8080'
+    depends_on:
+      - email-processor
+
+  ui:
+    image: ghcr.io/valkozaur/fleetmanager-ui:latest
+    restart: always
+    depends_on:
+      - api-gateway
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ../../infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../../infrastructure/nginx/sites-available:/etc/nginx/sites-available:ro

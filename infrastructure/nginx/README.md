@@ -1,3 +1,6 @@
+Nginx configuration used for routing UI and API traffic in production.
+
+Place site-specific files in `sites-available/` and mount certificates from `/etc/letsencrypt` when deploying.
 # Nginx Configuration
 
 Nginx reverse proxy configuration for FleetManager microservices.
