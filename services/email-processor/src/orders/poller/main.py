@@ -77,12 +77,15 @@ def run():
     # Check if we're in test mode
     test_mode = os.getenv('TEST_MODE', 'false').lower() == 'true'
     test_email_query = os.getenv('TEST_EMAIL_QUERY', '')
+    
+    # Get data directory
+    data_dir = os.getenv('DATA_DIR', './data')
 
     try:
         gmail_client = GmailClient(
             credentials_file=os.getenv('GMAIL_CREDENTIALS_FILE', './credentials.json'),
             token_file='token.json',
-            data_dir=os.getenv('DATA_DIR', './data')
+            data_dir=data_dir
         )
 
         classifier = MailClassifier(api_key=os.getenv('GEMINI_API_KEY'))
@@ -98,7 +101,7 @@ def run():
             try:
                 sheets_client = GoogleSheetsClient(
                     credentials_file=os.getenv('GMAIL_CREDENTIALS_FILE', './credentials.json'),
-                    token_file='token_sheets.json'
+                    token_file=os.path.join(data_dir, 'token_sheets.json')
                 )
                 if not sheets_client.authenticate():
                     logger.warning("Failed to authenticate with Google Sheets API. Database saving will be disabled.")

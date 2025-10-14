@@ -50,21 +50,21 @@ class GoogleSheetsClient:
             # If no valid credentials, get new ones
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
-                    creds.refresh(Request())
-                    logger.info("Refreshed expired Sheets token")
+                    try:
+                        creds.refresh(Request())
+                        logger.info("Refreshed expired Sheets token")
+                        # Save refreshed credentials
+                        with open(self.token_file, 'w') as token:
+                            token.write(creds.to_json())
+                        logger.info(f"Saved refreshed Sheets token to {self.token_file}")
+                    except Exception as e:
+                        logger.error(f"Failed to refresh token: {e}")
+                        logger.error("Please delete the token file and re-authenticate manually")
+                        return False
                 else:
-                    if not os.path.exists(self.credentials_file):
-                        raise FileNotFoundError(f"Credentials file not found: {self.credentials_file}")
-
-                    flow = InstalledAppFlow.from_client_secrets_file(
-                        self.credentials_file, self.SCOPES)
-                    creds = flow.run_local_server(port=0)
-                    logger.info("Completed OAuth flow for Sheets")
-
-                # Save credentials for next run
-                with open(self.token_file, 'w') as token:
-                    token.write(creds.to_json())
-                logger.info(f"Saved Sheets token to {self.token_file}")
+                    logger.error(f"No valid credentials found and cannot run OAuth flow in headless mode")
+                    logger.error(f"Please run authentication locally and copy {self.token_file} to the server")
+                    return False
 
             # Build the service object
             self.service = build('sheets', 'v4', credentials=creds)
