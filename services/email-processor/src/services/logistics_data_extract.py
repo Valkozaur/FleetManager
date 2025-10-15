@@ -1,8 +1,8 @@
 from google import genai
 from google.genai import types
-from ..models.logistics import LogisticsDataExtract
-from ..models.email import Email, Attachment
-from .email_prompt_construct import construct_prompt_parts
+from models.logistics import LogisticsDataExtract
+from models.email import Email, Attachment
+from services.email_prompt_construct import construct_prompt_parts
 import logging
 
 logger = logging.getLogger(__name__)

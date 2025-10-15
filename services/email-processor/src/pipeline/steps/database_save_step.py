@@ -1,6 +1,6 @@
-from ..processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
-from ...clients.google_sheets_client import GoogleSheetsClient
-from ..processing_context import ProcessingContext
+from pipeline.processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
+from clients.google_sheets_client import GoogleSheetsClient
+from pipeline.processing_context import ProcessingContext
 
 
 class DatabaseSaveStep(ProcessingStep):
@@ -110,7 +110,7 @@ class DatabaseSaveStep(ProcessingStep):
         # Update logistics data with email identifiers if not already present
         if logistics.email_id is None:
             # Create updated logistics data with email identifiers
-            from ...models.logistics import LogisticsDataExtract
+            from models.logistics import LogisticsDataExtract
             updated_logistics = LogisticsDataExtract(
                 # Logistics fields
                 loading_address=logistics.loading_address,

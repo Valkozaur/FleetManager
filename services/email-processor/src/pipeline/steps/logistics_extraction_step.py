@@ -1,6 +1,6 @@
-from ..processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
-from ...services.logistics_data_extract import LogisticsDataExtractor
-from ..processing_context import ProcessingContext
+from pipeline.processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
+from services.logistics_data_extract import LogisticsDataExtractor
+from pipeline.processing_context import ProcessingContext
 
 
 class LogisticsExtractionStep(ProcessingStep):

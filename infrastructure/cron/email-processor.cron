@@ -1,0 +1,5 @@
+# Cron to run the email-processor via docker-compose on the host
+# Place this in the crontab of the host or include via /etc/cron.d/
+
+# Every 5 minutes
+*/5 * * * * cd /opt/fleetmanager && docker-compose -f infrastructure/docker/docker-compose.prod.yml run --rm email-processor >> /var/log/fleetmanager/email-processor.log 2>&1

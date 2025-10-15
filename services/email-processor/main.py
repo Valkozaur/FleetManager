@@ -9,21 +9,21 @@ import sys
 import logging
 from dotenv import load_dotenv
 
-# Add project root to Python path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-sys.path.insert(0, project_root)
+# Add src directory to Python path for absolute imports
+src_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, src_root)
 
-from src.orders.poller.services.classifier import MailClassifier, MailClassificationEnum
-from src.orders.poller.services.logistics_data_extract import LogisticsDataExtractor
-from src.orders.poller.clients.gmail_client import GmailClient
-from src.orders.poller.clients.google_maps_client import GoogleMapsClient
-from src.orders.poller.clients.google_sheets_client import GoogleSheetsClient
-from src.orders.poller.pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
-from src.orders.poller.pipeline.processing_context import ProcessingContext
-from src.orders.poller.pipeline.steps.classification_step import EmailClassificationStep
-from src.orders.poller.pipeline.steps.logistics_extraction_step import LogisticsExtractionStep
-from src.orders.poller.pipeline.steps.geocoding_step import GeocodingStep
-from src.orders.poller.pipeline.steps.database_save_step import DatabaseSaveStep
+from services.classifier import MailClassifier, MailClassificationEnum
+from services.logistics_data_extract import LogisticsDataExtractor
+from clients.gmail_client import GmailClient
+from clients.google_maps_client import GoogleMapsClient
+from clients.google_sheets_client import GoogleSheetsClient
+from pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
+from pipeline.processing_context import ProcessingContext
+from pipeline.steps.classification_step import EmailClassificationStep
+from pipeline.steps.logistics_extraction_step import LogisticsExtractionStep
+from pipeline.steps.geocoding_step import GeocodingStep
+from pipeline.steps.database_save_step import DatabaseSaveStep
 
 # Load environment variables
 load_dotenv()
@@ -77,12 +77,24 @@ def run():
     # Check if we're in test mode
     test_mode = os.getenv('TEST_MODE', 'false').lower() == 'true'
     test_email_query = os.getenv('TEST_EMAIL_QUERY', '')
+    
+    # Get data directory
+    data_dir = os.getenv('DATA_DIR', './data')
 
     try:
+        # Get service account configuration
+        service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+        if not service_account_file:
+            raise ValueError("GOOGLE_SERVICE_ACCOUNT_FILE environment variable is required")
+        
+        delegated_user_email = os.getenv('GMAIL_DELEGATED_USER_EMAIL')
+        if not delegated_user_email:
+            raise ValueError("GMAIL_DELEGATED_USER_EMAIL environment variable is required")
+        
         gmail_client = GmailClient(
-            credentials_file=os.getenv('GMAIL_CREDENTIALS_FILE', './credentials.json'),
-            token_file='token.json',
-            data_dir=os.getenv('DATA_DIR', './data')
+            service_account_file=service_account_file,
+            delegated_user_email=delegated_user_email,
+            data_dir=data_dir
         )
 
         classifier = MailClassifier(api_key=os.getenv('GEMINI_API_KEY'))
@@ -97,8 +109,7 @@ def run():
         if os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID'):
             try:
                 sheets_client = GoogleSheetsClient(
-                    credentials_file=os.getenv('GMAIL_CREDENTIALS_FILE', './credentials.json'),
-                    token_file='token_sheets.json'
+                    service_account_file=service_account_file
                 )
                 if not sheets_client.authenticate():
                     logger.warning("Failed to authenticate with Google Sheets API. Database saving will be disabled.")
@@ -107,6 +118,7 @@ def run():
                     logger.info("Successfully authenticated with Google Sheets API")
             except Exception as e:
                 logger.warning(f"Failed to initialize Google Sheets client: {e}")
+                sheets_client = None
         else:
             logger.info("GOOGLE_SHEETS_SPREADSHEET_ID not set. Database saving will be disabled.")
 

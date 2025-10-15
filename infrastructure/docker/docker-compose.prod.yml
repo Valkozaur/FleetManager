@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Email Processing Service - Production Ready
+  email-processor:
+    image: ghcr.io/valkozaur/fleetmanager-email-processor:latest
+    container_name: fleetmanager-email-processor
+    restart: unless-stopped
+    env_file:
+      - /opt/fleetmanager/.env.production
+    volumes:
+      # Persist data and tokens
+      - fleetmanager_data:/app/data
+      - fleetmanager_logs:/app/logs
+      # Mount credentials securely
+      - /opt/fleetmanager/credentials:/app/credentials:ro
+    environment:
+      - DATA_DIR=/app/data
+      - GMAIL_CREDENTIALS_FILE=/app/credentials/credentials.json
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /app/credentials/credentials.json || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - fleetmanager-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Future API Gateway Service
+  # api-gateway:
+  #   image: ghcr.io/valkozaur/fleetmanager-api-gateway:latest
+  #   container_name: fleetmanager-api-gateway
+  #   restart: unless-stopped
+  #   ports:
+  #     - '8080:8080'
+  #   env_file:
+  #     - ../../.env.production
+  #   depends_on:
+  #     - email-processor
+  #   networks:
+  #     - fleetmanager-network
+
+  # Future UI Service
+  # ui:
+  #   image: ghcr.io/valkozaur/fleetmanager-ui:latest
+  #   container_name: fleetmanager-ui
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ../../.env.production
+  #   depends_on:
+  #     - api-gateway
+  #   networks:
+  #     - fleetmanager-network
+
+  # Nginx Reverse Proxy
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: fleetmanager-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - '80:80'
+  #     - '443:443'
+  #   volumes:
+  #     - ../../infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ../../infrastructure/nginx/sites-available:/etc/nginx/sites-available:ro
+  #   networks:
+  #     - fleetmanager-network
+
+volumes:
+  fleetmanager_data:
+    driver: local
+  fleetmanager_logs:
+    driver: local
+
+networks:
+  fleetmanager-network:
+    driver: bridge
