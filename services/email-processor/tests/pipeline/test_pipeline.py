@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
-from src.orders.poller.pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
-from src.orders.poller.pipeline.processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
-from src.orders.poller.pipeline.processing_context import ProcessingContext
-from src.orders.poller.models.email import Email
+from src.pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
+from src.pipeline.processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
+from src.pipeline.processing_context import ProcessingContext
+from src.models.email import Email
 
 
 class MockProcessingStep(ProcessingStep):
