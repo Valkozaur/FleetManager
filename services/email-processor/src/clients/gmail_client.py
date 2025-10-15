@@ -1,16 +1,13 @@
 import os
-import json
 import logging
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Dict, Any, List
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow, Flow
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from ..models.email import Email, Attachment
+from models.email import Email, Attachment
 
 logger = logging.getLogger(__name__)
 
@@ -19,68 +16,46 @@ class GmailClient:
 
     SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
-    def __init__(self, credentials_file: str = 'credentials.json',
-                 token_file: str = 'token.json',
-                 data_dir: str = '/app/data'):
-        self.credentials_file = credentials_file
-        self.token_file = os.path.join(data_dir, token_file)
+    def __init__(self, service_account_file: str, delegated_user_email: str, data_dir: str = '/app/data'):
+        """
+        Initialize Gmail client with service account authentication
+        
+        Args:
+            service_account_file: Path to service account JSON key file
+            delegated_user_email: Email address to impersonate (domain-wide delegation)
+            data_dir: Directory for storing last check timestamp
+        """
+        self.service_account_file = service_account_file
+        self.delegated_user_email = delegated_user_email
         self.data_dir = data_dir
         self.service = None
         self._authenticate()
 
     def _authenticate(self):
-        """Authenticate with Gmail API using OAuth 2.0"""
+        """Authenticate with Gmail API using service account"""
         try:
             # Create data directory if it doesn't exist
             os.makedirs(self.data_dir, exist_ok=True)
 
-            creds = None
+            # Check if service account file exists
+            if not os.path.exists(self.service_account_file):
+                raise FileNotFoundError(
+                    f"Service account file not found: {self.service_account_file}. "
+                    "Please download from Google Cloud Console."
+                )
 
-            # Load existing token if available
-            if os.path.exists(self.token_file):
-                try:
-                    creds = Credentials.from_authorized_user_file(self.token_file, self.SCOPES)
-                    logger.info("Loaded existing credentials")
-                except Exception as e:
-                    logger.warning(f"Failed to load existing credentials: {e}")
+            # Load service account credentials
+            credentials = service_account.Credentials.from_service_account_file(
+                self.service_account_file,
+                scopes=self.SCOPES
+            )
 
-            # If there are no valid credentials, let the user log in
-            if not creds or not creds.valid:
-                if creds and creds.expired and creds.refresh_token:
-                    try:
-                        logger.info("Refreshing expired credentials")
-                        creds.refresh(Request())
-                    except Exception as e:
-                        logger.warning(f"Failed to refresh credentials: {e}")
-                        creds = None
-
-                if not creds:
-                    # Check if credentials file exists
-                    if not os.path.exists(self.credentials_file):
-                        raise FileNotFoundError(
-                            f"Credentials file not found: {self.credentials_file}. "
-                            "Please download from Google Cloud Console."
-                        )
-
-                    # Try headless authentication first
-                    creds = self._headless_auth()
-                    if not creds:
-                        logger.info("Starting OAuth flow")
-                        flow = InstalledAppFlow.from_client_secrets_file(
-                            self.credentials_file, self.SCOPES)
-                        creds = flow.run_local_server(port=0)
-
-                # Save the credentials for the next run
-                try:
-                    with open(self.token_file, 'w') as token:
-                        token.write(creds.to_json())
-                    logger.info("Saved credentials to token file")
-                except Exception as e:
-                    logger.error(f"Failed to save credentials: {e}")
+            # Create delegated credentials for the specified user
+            delegated_credentials = credentials.with_subject(self.delegated_user_email)
 
             # Build Gmail service
-            self.service = build('gmail', 'v1', credentials=creds)
-            logger.info("Successfully authenticated with Gmail API")
+            self.service = build('gmail', 'v1', credentials=delegated_credentials)
+            logger.info(f"Successfully authenticated with Gmail API as {self.delegated_user_email}")
 
         except Exception as e:
             logger.error(f"Authentication failed: {e}")
@@ -268,92 +243,3 @@ class GmailClient:
         except Exception as e:
             logger.error(f"Failed to save last check timestamp: {e}")
 
-    def _headless_auth(self):
-        """Handle headless OAuth authentication for servers without browsers"""
-        try:
-            # Check for pre-generated authorization code
-            auth_code_file = os.path.join(self.data_dir, 'auth_code.txt')
-            if os.path.exists(auth_code_file):
-                with open(auth_code_file, 'r') as f:
-                    auth_code = f.read().strip()
-
-                logger.info("Using pre-generated authorization code")
-                return self._exchange_code_for_token(auth_code)
-
-            # Check for imported token file
-            imported_token_file = os.path.join(self.data_dir, 'imported_token.json')
-            if os.path.exists(imported_token_file):
-                with open(imported_token_file, 'r') as f:
-                    token_data = json.load(f)
-
-                logger.info("Using imported token")
-                return Credentials.from_authorized_user_info(token_data, self.SCOPES)
-
-            logger.info("No pre-generated auth code or imported token found")
-            return None
-
-        except Exception as e:
-            logger.error(f"Headless authentication failed: {e}")
-            return None
-
-    def _exchange_code_for_token(self, auth_code):
-        """Exchange authorization code for access token"""
-        try:
-            # Create flow instance
-            flow = Flow.from_client_secrets_file(
-                self.credentials_file,
-                scopes=self.SCOPES,
-                redirect_uri='urn:ietf:wg:oauth:2.0:oob'  # Out-of-band flow
-            )
-
-            # Exchange code for token
-            flow.fetch_token(code=auth_code)
-            return flow.credentials
-
-        except Exception as e:
-            logger.error(f"Failed to exchange code for token: {e}")
-            return None
-
-    def export_token(self, output_file=None):
-        """Export current token for headless deployment"""
-        if not output_file:
-            output_file = os.path.join(self.data_dir, 'exported_token.json')
-
-        try:
-            if os.path.exists(self.token_file):
-                with open(self.token_file, 'r') as f:
-                    token_data = json.load(f)
-
-                with open(output_file, 'w') as f:
-                    json.dump(token_data, f, indent=2)
-
-                logger.info(f"Token exported to {output_file}")
-                return True
-            else:
-                logger.error("No token file found to export")
-                return False
-
-        except Exception as e:
-            logger.error(f"Failed to export token: {e}")
-            return False
-
-    def generate_auth_url(self):
-        """Generate authorization URL for headless authentication"""
-        try:
-            flow = Flow.from_client_secrets_file(
-                self.credentials_file,
-                scopes=self.SCOPES,
-                redirect_uri='urn:ietf:wg:oauth:2.0:oob'
-            )
-
-            auth_url, _ = flow.authorization_url(
-                access_type='offline',
-                include_granted_scopes='true',
-                prompt='consent'
-            )
-
-            return auth_url
-
-        except Exception as e:
-            logger.error(f"Failed to generate auth URL: {e}")
-            return None

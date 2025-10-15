@@ -1,8 +1,8 @@
 from google import genai
 from google.genai import types
-from ..models.email import Email, Attachment 
+from models.email import Email, Attachment 
 from enum import Enum
-from .email_prompt_construct import construct_prompt_parts
+from services.email_prompt_construct import construct_prompt_parts
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,16 +19,18 @@ class MailClassifier:
     CLASSIFIER_INSTRUCTIONS="""
      You are an email classification assistant used within a truck fleet management system.
      Your task is to classify incoming emails into one of the following categories: Order, Invoice, or Other.
-        - Order: The email contains a new order request for transportation services.
+        - Order: The email contains a specific, actionable new order request for transportation services. 
+          Do NOT classify as "Order" if the email is a listing, summary, or offer of possible orders or shipments.
         - Invoice: The email contains billing information or an invoice for services rendered.
-        - Other: The email does not pertain to orders or invoices.
+        - Other: The email does not pertain to orders or invoices, or is a listing/summary/offer of available shipments.
 
     #Please respond with only one of the following keywords: "Order", "Invoice", or "Other".
 
     ##BE AWARE:
         - You will be provided with email content including subject, body.
         - You may or may not be provided with attachments depending on the email.
-        - You must base your classification on the whole information provided (including attachments if any). 
+        - You must base your classification on the whole information provided (including attachments if any).
+        - If the email is a list, summary, or offer of possible orders/shipments (not a direct request), classify as "Other".
      """
 
     def __init__(self, api_key: str):

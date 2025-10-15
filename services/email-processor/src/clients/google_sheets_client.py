@@ -1,9 +1,7 @@
 import os
 import logging
 from typing import List, Optional, Dict, Any
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -15,16 +13,14 @@ class GoogleSheetsClient:
 
     SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
-    def __init__(self, credentials_file: str = 'credentials.json', token_file: str = 'token_sheets.json'):
+    def __init__(self, service_account_file: str):
         """
-        Initialize Google Sheets client
+        Initialize Google Sheets client with service account authentication
 
         Args:
-            credentials_file: Path to OAuth 2.0 credentials file
-            token_file: Path to store/load user token
+            service_account_file: Path to service account JSON key file
         """
-        self.credentials_file = credentials_file
-        self.token_file = token_file
+        self.service_account_file = service_account_file
         self.service = None
         self.spreadsheet_id = os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
         self.range_name = os.getenv('GOOGLE_SHEETS_RANGE_NAME', 'Sheet1!A:Z')
@@ -34,40 +30,25 @@ class GoogleSheetsClient:
 
     def authenticate(self) -> bool:
         """
-        Authenticate with Google Sheets API using OAuth 2.0
+        Authenticate with Google Sheets API using service account
 
         Returns:
             bool: True if authentication successful
         """
         try:
-            creds = None
+            # Check if service account file exists
+            if not os.path.exists(self.service_account_file):
+                logger.error(f"Service account file not found: {self.service_account_file}")
+                return False
 
-            # Load existing token if available
-            if os.path.exists(self.token_file):
-                creds = Credentials.from_authorized_user_file(self.token_file, self.SCOPES)
-                logger.info("Loaded existing Sheets token")
-
-            # If no valid credentials, get new ones
-            if not creds or not creds.valid:
-                if creds and creds.expired and creds.refresh_token:
-                    try:
-                        creds.refresh(Request())
-                        logger.info("Refreshed expired Sheets token")
-                        # Save refreshed credentials
-                        with open(self.token_file, 'w') as token:
-                            token.write(creds.to_json())
-                        logger.info(f"Saved refreshed Sheets token to {self.token_file}")
-                    except Exception as e:
-                        logger.error(f"Failed to refresh token: {e}")
-                        logger.error("Please delete the token file and re-authenticate manually")
-                        return False
-                else:
-                    logger.error(f"No valid credentials found and cannot run OAuth flow in headless mode")
-                    logger.error(f"Please run authentication locally and copy {self.token_file} to the server")
-                    return False
+            # Load service account credentials
+            credentials = service_account.Credentials.from_service_account_file(
+                self.service_account_file,
+                scopes=self.SCOPES
+            )
 
             # Build the service object
-            self.service = build('sheets', 'v4', credentials=creds)
+            self.service = build('sheets', 'v4', credentials=credentials)
             logger.info("Successfully authenticated with Google Sheets API")
             return True
 

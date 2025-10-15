@@ -1,7 +1,7 @@
-from ..processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
-from ...services.classifier import MailClassifier
-from ...services.classifier import MailClassificationEnum
-from ..processing_context import ProcessingContext
+from pipeline.processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
+from services.classifier import MailClassifier
+from services.classifier import MailClassificationEnum
+from pipeline.processing_context import ProcessingContext
 
 
 class EmailClassificationStep(ProcessingStep):

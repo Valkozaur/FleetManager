@@ -1,6 +1,6 @@
-from ..processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
-from ...clients.google_maps_client import GoogleMapsClient
-from ..processing_context import ProcessingContext
+from pipeline.processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
+from clients.google_maps_client import GoogleMapsClient
+from pipeline.processing_context import ProcessingContext
 
 
 class GeocodingStep(ProcessingStep):

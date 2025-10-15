@@ -2,9 +2,9 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from ..models.email import Email
-from ..models.logistics import LogisticsDataExtract
-from ..services.classifier import MailClassificationEnum
+from models.email import Email
+from models.logistics import LogisticsDataExtract
+from services.classifier import MailClassificationEnum
 
 
 @dataclass

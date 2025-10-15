@@ -45,8 +45,9 @@ The processing flow is a strictly ordered pipeline defined by `ProcessingOrder` 
 ## External Integrations
 
 ### Gmail API
-- Uses OAuth 2.0 with token file at `{DATA_DIR}/token.json` (default: `/app/data/token.json`)
-- Supports both interactive and headless auth (see `_headless_auth()` in `gmail_client.py`)
+- Uses **service account authentication** with domain-wide delegation
+- Service account acts on behalf of `GMAIL_DELEGATED_USER_EMAIL`
+- No tokens needed - authenticates directly with service account key file at `GOOGLE_SERVICE_ACCOUNT_FILE`
 - Tracks last check timestamp in `{DATA_DIR}/last_check.txt`
 - Fetches emails with query (default: `is:unread`); supports custom queries via `TEST_EMAIL_QUERY`
 
@@ -62,7 +63,8 @@ The processing flow is a strictly ordered pipeline defined by `ProcessingOrder` 
 - Returns tuple `(lat, lng)` or None on failure
 
 ### Google Sheets API (Optional)
-- Requires `GOOGLE_SHEETS_SPREADSHEET_ID` + OAuth token at `token_sheets.json`
+- Uses **service account authentication** (same key as Gmail)
+- Requires `GOOGLE_SHEETS_SPREADSHEET_ID` + service account key at `GOOGLE_SERVICE_ACCOUNT_FILE`
 - Headers: `email_id`, `email_subject`, `email_sender`, `email_date`, + 10 logistics fields
 - Graceful degradation: if auth fails or env var missing, step is skipped
 
@@ -125,14 +127,15 @@ LOG_LEVEL=DEBUG
 - **Style**: Use `logger.info(f"Processing email: {email.subject}")` with context
 
 ### State Management
-- OAuth tokens stored in `{DATA_DIR}/` directory (not project root)
-- Never commit `token.json`, `token_sheets.json`, or `last_check.txt`
-- Token files auto-regenerate on first run if missing
+- Service account authentication requires no token storage
+- Last check timestamp stored in `{DATA_DIR}/last_check.txt`
+- Never commit `service-account.json` or `last_check.txt`
 
 ### Environment Variables
 **Required**:
 - `GEMINI_API_KEY`
-- `GMAIL_CREDENTIALS_FILE` (path to credentials.json)
+- `GOOGLE_SERVICE_ACCOUNT_FILE` (path to service account JSON key)
+- `GMAIL_DELEGATED_USER_EMAIL` (email to impersonate via domain-wide delegation)
 
 **Optional**:
 - `GOOGLE_MAPS_API_KEY` (enables geocoding)
@@ -158,3 +161,8 @@ LOG_LEVEL=DEBUG
 - **Clients**: `clients/{gmail,gemini,google_maps,google_sheets}_client.py`
 - **Models**: `models/{email,logistics}.py`
 - **Main**: `main.py` (wires everything together)
+
+
+### RULES
+- never create markdown (`.md`) files after you're done. NEVER!
+- only update existing markdown files.
