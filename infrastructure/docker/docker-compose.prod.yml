@@ -3,15 +3,15 @@ version: '3.8'
 services:
   # Email Processing Service - Production Ready
   email-processor:
-    image: ghcr.io/valkozaur/fleetmanager-email-processor:latest
-    container_name: fleetmanager-email-processor
+    image: ghcr.io/valkozaur/email-poller:latest
+    container_name: email-poller
     restart: unless-stopped
     env_file:
       - /opt/fleetmanager/.env.production
     volumes:
       # Persist data and tokens
-      - fleetmanager_data:/app/data
-      - fleetmanager_logs:/app/logs
+      - email_poller_data:/app/data
+      - email_poller_logs:/app/logs
       # Mount credentials securely
       - /opt/fleetmanager/credentials:/app/credentials:ro
     environment:
@@ -75,9 +75,9 @@ services:
   #     - fleetmanager-network
 
 volumes:
-  fleetmanager_data:
+  email_poller_data:
     driver: local
-  fleetmanager_logs:
+  email_poller_logs:
     driver: local
 
 networks:
