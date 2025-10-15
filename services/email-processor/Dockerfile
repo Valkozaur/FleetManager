@@ -66,7 +66,7 @@ USER appuser
 
 # Add labels for metadata
 LABEL org.opencontainers.image.source="https://github.com/Valkozaur/FleetManager"
-LABEL org.opencontainers.image.description="FleetManager - Gmail-based logistics order processing"
+LABEL org.opencontainers.image.description="Email Poller - Gmail-based logistics order processing"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # Health check - verify Python environment and credentials directory
