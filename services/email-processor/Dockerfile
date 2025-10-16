@@ -51,6 +51,9 @@ COPY --from=builder /opt/venv /opt/venv
 # file so the subsequent steps don't fail.
 COPY --chown=appuser:appuser . .
 
+# Replace general README with Docker-specific README
+COPY --chown=appuser:appuser README.Docker.md /app/README.md
+
 # Ensure an example env file exists inside the image. This avoids failing the
 # build when the source `.env.example` is outside the build context.
 RUN if [ ! -f /app/.env.example ]; then touch /app/.env.example; fi
