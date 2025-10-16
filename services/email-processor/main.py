@@ -10,7 +10,8 @@ import logging
 from dotenv import load_dotenv
 
 # Add src directory to Python path for absolute imports
-src_root = os.path.dirname(os.path.abspath(__file__))
+main_root = os.path.dirname(os.path.abspath(__file__))
+src_root = os.path.join(main_root, 'src')
 sys.path.insert(0, src_root)
 
 from services.classifier import MailClassifier, MailClassificationEnum
