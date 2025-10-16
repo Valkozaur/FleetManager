@@ -77,4 +77,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import sys; sys.exit(0)" && test -d /app/credentials || exit 1
 
 # Default command
-CMD ["python", "-u", "src/orders/poller/main.py"]
+CMD ["python", "-u", "main.py"]
