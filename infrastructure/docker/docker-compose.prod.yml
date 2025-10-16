@@ -34,46 +34,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Future API Gateway Service
-  # api-gateway:
-  #   image: ghcr.io/valkozaur/fleetmanager-api-gateway:latest
-  #   container_name: fleetmanager-api-gateway
-  #   restart: unless-stopped
-  #   ports:
-  #     - '8080:8080'
-  #   env_file:
-  #     - ../../.env.production
-  #   depends_on:
-  #     - email-processor
-  #   networks:
-  #     - fleetmanager-network
-
-  # Future UI Service
-  # ui:
-  #   image: ghcr.io/valkozaur/fleetmanager-ui:latest
-  #   container_name: fleetmanager-ui
-  #   restart: unless-stopped
-  #   env_file:
-  #     - ../../.env.production
-  #   depends_on:
-  #     - api-gateway
-  #   networks:
-  #     - fleetmanager-network
-
-  # Nginx Reverse Proxy
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: fleetmanager-nginx
-  #   restart: unless-stopped
-  #   ports:
-  #     - '80:80'
-  #     - '443:443'
-  #   volumes:
-  #     - ../../infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ../../infrastructure/nginx/sites-available:/etc/nginx/sites-available:ro
-  #   networks:
-  #     - fleetmanager-network
-
 volumes:
   email_poller_data:
     driver: local

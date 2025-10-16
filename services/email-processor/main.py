@@ -17,6 +17,7 @@ sys.path.insert(0, src_root)
 from services.classifier import MailClassifier, MailClassificationEnum
 from services.logistics_data_extract import LogisticsDataExtractor
 from clients.gmail_client import GmailClient
+from clients.processed_email_tracker import ProcessedEmailTracker
 from clients.google_maps_client import GoogleMapsClient
 from clients.google_sheets_client import GoogleSheetsClient
 from pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
@@ -123,9 +124,13 @@ def run():
         else:
             logger.info("GOOGLE_SHEETS_SPREADSHEET_ID not set. Database saving will be disabled.")
 
+
         # Create processing pipeline
         pipeline = _create_processing_pipeline(classifier, extractor, google_maps_client, sheets_client)
         logger.info(f"Created processing pipeline with {len(pipeline.steps)} steps")
+
+        # Processed email tracker
+        processed_tracker = ProcessedEmailTracker(data_dir=data_dir)
 
         # Determine email query based on mode
         if test_mode:
@@ -148,6 +153,9 @@ def run():
         failed_processing = 0
 
         for email in emails:
+            if processed_tracker.is_processed(email.id):
+                logger.info(f"Skipping already processed email: {email.subject} (ID: {email.id})")
+                continue
             try:
                 logger.info(f"Processing email with subject: {email.subject}")
 
@@ -161,11 +169,13 @@ def run():
                 if processed_context.is_order_email() and processed_context.has_logistics_data():
                     logger.info(f"Successfully processed order email. Logistics data: {processed_context.logistics_data}")
                     successful_processing += 1
+                    processed_tracker.mark_processed(email.id)
                 elif processed_context.is_order_email():
                     logger.warning(f"Email classified as order but failed to extract logistics data. Errors: {processed_context.errors}")
                     failed_processing += 1
                 else:
                     logger.info(f"Email classified as {processed_context.classification}. Skipping logistics extraction.")
+                    processed_tracker.mark_processed(email.id)
 
             except PipelineExecutionError as e:
                 logger.error(f"Pipeline execution failed for email '{email.subject}': {e}")
