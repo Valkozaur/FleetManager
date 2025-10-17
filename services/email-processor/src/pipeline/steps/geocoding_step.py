@@ -13,6 +13,7 @@ class GeocodingStep(ProcessingStep):
     def process(self, context: ProcessingContext) -> ProcessingResult:
         """
         Fill missing coordinates in the logistics data using Google Maps API
+        Uses cleaned addresses from ADDRESS_CLEANING step if available
 
         Args:
             context: Processing context containing logistics data with potentially missing coordinates
@@ -30,27 +31,33 @@ class GeocodingStep(ProcessingStep):
             self.logger.info(f"Starting geocoding for logistics data")
             coordinates_filled = 0
 
+            # Get cleaned addresses from context (if available)
+            cleaned_loading = context.get_custom_data('cleaned_loading_address')
+            cleaned_unloading = context.get_custom_data('cleaned_unloading_address')
+
             # Fill loading coordinates if missing
             if not context.logistics_data.loading_coordinates and context.logistics_data.loading_address:
-                self.logger.info(f"Attempting to geocode loading address: {context.logistics_data.loading_address}")
-                coords = self.google_maps_client.geocode_address(context.logistics_data.loading_address)
+                address_to_geocode = cleaned_loading or context.logistics_data.loading_address
+                self.logger.info(f"Attempting to geocode loading address: {address_to_geocode}")
+                coords = self.google_maps_client.geocode_address(address_to_geocode)
                 if coords:
                     context.logistics_data.loading_coordinates = f"{coords[0]}, {coords[1]}"
                     coordinates_filled += 1
                     self.logger.info(f"Successfully geocoded loading address to: {context.logistics_data.loading_coordinates}")
                 else:
-                    self.logger.warning(f"Failed to geocode loading address: {context.logistics_data.loading_address}")
+                    self.logger.warning(f"Failed to geocode loading address: {address_to_geocode}")
 
             # Fill unloading coordinates if missing
             if not context.logistics_data.unloading_coordinates and context.logistics_data.unloading_address:
-                self.logger.info(f"Attempting to geocode unloading address: {context.logistics_data.unloading_address}")
-                coords = self.google_maps_client.geocode_address(context.logistics_data.unloading_address)
+                address_to_geocode = cleaned_unloading or context.logistics_data.unloading_address
+                self.logger.info(f"Attempting to geocode unloading address: {address_to_geocode}")
+                coords = self.google_maps_client.geocode_address(address_to_geocode)
                 if coords:
                     context.logistics_data.unloading_coordinates = f"{coords[0]}, {coords[1]}"
                     coordinates_filled += 1
                     self.logger.info(f"Successfully geocoded unloading address to: {context.logistics_data.unloading_coordinates}")
                 else:
-                    self.logger.warning(f"Failed to geocode unloading address: {context.logistics_data.unloading_address}")
+                    self.logger.warning(f"Failed to geocode unloading address: {address_to_geocode}")
 
             self.logger.info(f"Geocoding completed. Filled {coordinates_filled} coordinates.")
             return ProcessingResult(
