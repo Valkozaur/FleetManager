@@ -83,7 +83,9 @@ class DatabaseSaveStep(ProcessingStep):
             "email_sender",
             "email_date",
             "loading_address",
+            "loading_address_cleaned",
             "unloading_address",
+            "unloading_address_cleaned",
             "loading_date",
             "unloading_date",
             "loading_coordinates",
@@ -106,6 +108,10 @@ class DatabaseSaveStep(ProcessingStep):
         """
         logistics = context.logistics_data
         email = context.email
+
+        # Get cleaned addresses from context
+        cleaned_loading = context.get_custom_data('cleaned_loading_address', '')
+        cleaned_unloading = context.get_custom_data('cleaned_unloading_address', '')
 
         # Update logistics data with email identifiers if not already present
         if logistics.email_id is None:
@@ -138,7 +144,9 @@ class DatabaseSaveStep(ProcessingStep):
             "email_sender": logistics.email_sender,
             "email_date": logistics.email_date.isoformat() if logistics.email_date else "",
             "loading_address": logistics.loading_address,
+            "loading_address_cleaned": cleaned_loading,
             "unloading_address": logistics.unloading_address,
+            "unloading_address_cleaned": cleaned_unloading,
             "loading_date": logistics.loading_date,
             "unloading_date": logistics.unloading_date,
             "loading_coordinates": logistics.loading_coordinates or "",

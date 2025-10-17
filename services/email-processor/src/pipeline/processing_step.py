@@ -10,8 +10,9 @@ class ProcessingOrder(IntEnum):
     """Define the order of processing steps"""
     CLASSIFICATION = 1
     LOGISTICS_EXTRACTION = 2
-    GEOCODING = 3
-    DATABASE_SAVE = 4
+    ADDRESS_CLEANING = 3
+    GEOCODING = 4
+    DATABASE_SAVE = 5
 
 
 class ProcessingResult:

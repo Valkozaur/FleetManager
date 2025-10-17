@@ -59,51 +59,28 @@ class GoogleMapsClient:
         try:
             logger.info(f"Geocoding address: {address}")
 
-            # Import here to avoid circular imports in some contexts
-            try:
-                from services.address_simplifier import AddressSimplifier
-            except Exception:
-                # fallback import path used in tests/run-from-root scenarios
-                from email_processor.src.services.address_simplifier import AddressSimplifier  # type: ignore
-
-            simplified = AddressSimplifier.simplify_address(address)
-            logger.info(f"Simplified address for geocoding: '{simplified}' (original: '{address}')")
-
-            # First try with simplified address
-            data = self._make_request(simplified)
+            data = self._make_request(address)
             if not data:
                 return None
 
             if data.get('status') != 'OK':
-                logger.warning(f"Geocoding failed for address '{simplified}': {data.get('status')} - {data.get('error_message', 'No error message')}")
-                # If simplified failed, try original as last resort
-                data = self._make_request(address)
-                if not data or data.get('status') != 'OK':
-                    return None
+                logger.warning(f"Geocoding failed for address '{address}': {data.get('status')} - {data.get('error_message', 'No error message')}")
+                return None
 
             results = data.get('results', [])
             if not results:
-                logger.warning(f"No results found for address: {simplified}")
+                logger.warning(f"No results found for address: {address}")
                 return None
 
-            top = results[0]
-            formatted = top.get('formatted_address', '')
-
-            # Enforce strict matching: only accept results that appear to be an exact/close match
-            if not AddressSimplifier.is_strict_match(simplified, formatted):
-                logger.warning(f"Geocoding result '{formatted}' does not strictly match simplified address '{simplified}'. Rejecting.")
-                # Do not accept lower-precision matches (e.g., city-only)
-                return None
-
-            location = top.get('geometry', {}).get('location', {})
+            location = results[0].get('geometry', {}).get('location', {})
             lat = location.get('lat')
             lng = location.get('lng')
 
             if lat is None or lng is None:
-                logger.warning(f"Invalid coordinates received for address: {simplified}")
+                logger.warning(f"Invalid coordinates received for address: {address}")
                 return None
 
-            logger.info(f"Successfully geocoded address '{simplified}' to ({lat}, {lng})")
+            logger.info(f"Successfully geocoded address '{address}' to ({lat}, {lng})")
             return (str(lat), str(lng))
 
         except Exception as e:
