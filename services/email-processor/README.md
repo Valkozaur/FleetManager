@@ -21,8 +21,7 @@ This service:
 - `GOOGLE_SHEETS_RANGE_NAME`: Sheet name and range (default: "Sheet1!A:Z")
 - `DATA_DIR`: Directory for storing last check timestamp (default: /app/data)
 - `LOG_LEVEL`: Logging level (default: INFO)
-- `TEST_MODE`: Enable test mode with custom queries (default: false)
-- `TEST_EMAIL_QUERY`: Custom Gmail search query when TEST_MODE is enabled
+- `TEST_EMAIL_QUERY`: Optional Gmail search query to filter emails (e.g., "subject:test")
 
 ## Service Account Setup
 

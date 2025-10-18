@@ -94,12 +94,11 @@ pytest
 ### Debugging Mode
 Set in `.env`:
 ```
-TEST_MODE=true
 TEST_EMAIL_QUERY=subject:"test order"
 LOG_LEVEL=DEBUG
 ```
-- `TEST_MODE=true`: Enables custom email queries instead of `is:unread`
-- `TEST_EMAIL_QUERY`: Custom Gmail search query (e.g., `subject:test`, `from:user@example.com`)
+- `TEST_EMAIL_QUERY`: Custom Gmail search query to filter emails (supplements timestamp-based filtering)
+- Examples: `subject:test`, `from:user@example.com`, `subject:"test order"`
 
 ### Deployment (CI/CD)
 - **Trigger**: Push to `main`/`develop` or manual dispatch
@@ -143,8 +142,7 @@ LOG_LEVEL=DEBUG
 - `GOOGLE_SHEETS_RANGE_NAME` (default: "Sheet1!A:Z")
 - `DATA_DIR` (default: "./data")
 - `LOG_LEVEL` (default: "INFO")
-- `TEST_MODE` (default: "false")
-- `TEST_EMAIL_QUERY` (only used when TEST_MODE=true)
+- `TEST_EMAIL_QUERY` (optional; filters emails with Gmail query syntax)
 
 ## Anti-Patterns to Avoid
 - ❌ Don't edit files in root `shared/` folder (duplicates are for future services)

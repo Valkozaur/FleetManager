@@ -79,10 +79,6 @@ def run():
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
-    # Check if we're in test mode
-    test_mode = os.getenv('TEST_MODE', 'false').lower() == 'true'
-    test_email_query = os.getenv('TEST_EMAIL_QUERY', '')
-    
     # Get data directory
     data_dir = os.getenv('DATA_DIR', './data')
 
@@ -136,23 +132,17 @@ def run():
         # Processed email tracker
         processed_tracker = ProcessedEmailTracker(data_dir=data_dir)
 
-        # Determine email query based on mode
-        if test_mode:
-            if test_email_query:
-                email_query = test_email_query
-                logger.info(f"TEST MODE: Using custom email query: '{email_query}'")
-            else:
-                email_query = ''
-                logger.warning("TEST MODE: No TEST_EMAIL_QUERY provided, using empty query")
-        else:
-            email_query = ''
-            logger.info("NORMAL MODE: Fetching emails after last check timestamp")
+        # Optional: Custom query for debugging/testing (supplements timestamp filter)
+        custom_query = os.getenv('TEST_EMAIL_QUERY', '').strip()
+        if custom_query:
+            logger.info(f"Using custom Gmail query filter: '{custom_query}'")
 
         # Get last check timestamp to fetch emails after that time
         last_check = gmail_client.get_last_check_timestamp()
         if last_check:
+            from datetime import datetime
             readable_time = datetime.fromtimestamp(last_check).strftime('%Y-%m-%d %H:%M:%S')
-            logger.info(f"Last check timestamp: {last_check} ({readable_time})")
+            logger.info(f"Fetching emails after: {readable_time}")
         else:
             logger.info("No last check timestamp found. Fetching emails from the last hour.")
             # If no last check, default to 1 hour ago (safe for 5-minute intervals)
@@ -160,8 +150,8 @@ def run():
             last_check = int((datetime.now() - timedelta(hours=1)).timestamp())
 
         # Fetch emails
-        emails = gmail_client.get_emails(query=email_query, after_timestamp=last_check)
-        logger.info(f"Fetched {len(emails)} emails using query: '{email_query}'")
+        emails = gmail_client.get_emails(query=custom_query, after_timestamp=last_check)
+        logger.info(f"Fetched {len(emails)} emails")
 
         # Process each email through the pipeline
         successful_processing = 0
