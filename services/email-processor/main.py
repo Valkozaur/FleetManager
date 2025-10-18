@@ -79,10 +79,6 @@ def run():
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
-    # Check if we're in test mode
-    test_mode = os.getenv('TEST_MODE', 'false').lower() == 'true'
-    test_email_query = os.getenv('TEST_EMAIL_QUERY', '')
-    
     # Get data directory
     data_dir = os.getenv('DATA_DIR', './data')
 
@@ -136,30 +132,43 @@ def run():
         # Processed email tracker
         processed_tracker = ProcessedEmailTracker(data_dir=data_dir)
 
-        # Determine email query based on mode
-        if test_mode:
-            if test_email_query:
-                email_query = test_email_query
-                logger.info(f"TEST MODE: Using custom email query: '{email_query}'")
-            else:
-                email_query = 'is:unread'
-                logger.warning("TEST MODE: No TEST_EMAIL_QUERY provided, using default query 'is:unread'")
+        # Optional: Custom query for debugging/testing (supplements timestamp filter)
+        custom_query = os.getenv('TEST_EMAIL_QUERY', '').strip()
+        if custom_query:
+            logger.info(f"Using custom Gmail query filter: '{custom_query}'")
+
+        # Get last check timestamp to fetch emails after that time
+        last_check = gmail_client.get_last_check_timestamp()
+        if last_check:
+            from datetime import datetime
+            readable_time = datetime.fromtimestamp(last_check).strftime('%Y-%m-%d %H:%M:%S')
+            logger.info(f"Fetching emails after: {readable_time}")
         else:
-            email_query = 'is:unread'
-            logger.info("NORMAL MODE: Using default query 'is:unread'")
+            logger.info("No last check timestamp found. Fetching emails from the last hour.")
+            # If no last check, default to 1 hour ago (safe for 5-minute intervals)
+            from datetime import datetime, timedelta
+            last_check = int((datetime.now() - timedelta(hours=1)).timestamp())
 
         # Fetch emails
-        emails = gmail_client.get_emails(query=email_query)
-        logger.info(f"Fetched {len(emails)} emails using query: '{email_query}'")
+        emails = gmail_client.get_emails(query=custom_query, after_timestamp=last_check)
+        logger.info(f"Fetched {len(emails)} emails")
 
         # Process each email through the pipeline
         successful_processing = 0
         failed_processing = 0
+        max_timestamp = last_check if last_check else 0
 
         for email in emails:
+            # Deduplication: Skip if already processed (handles same-second arrivals)
             if processed_tracker.is_processed(email.id):
                 logger.info(f"Skipping already processed email: {email.subject} (ID: {email.id})")
                 continue
+            
+            # Track the maximum timestamp from fetched emails
+            email_timestamp = int(email.received_at.timestamp())
+            if email_timestamp > max_timestamp:
+                max_timestamp = email_timestamp
+            
             try:
                 logger.info(f"Processing email with subject: {email.subject}")
 
@@ -189,6 +198,14 @@ def run():
                 failed_processing += 1
 
         logger.info(f"Email processing completed. Successful: {successful_processing}, Failed: {failed_processing}")
+        
+        # Save the maximum timestamp from processed emails as watermark for next run
+        # This ensures we don't miss emails that arrived at the same second
+        if max_timestamp > (last_check if last_check else 0):
+            gmail_client.save_last_check_timestamp(max_timestamp)
+        else:
+            logger.info("No new emails processed, keeping existing watermark")
+        
         return failed_processing == 0
 
     except Exception as e:

@@ -41,8 +41,7 @@ This service continuously:
 | `GOOGLE_SHEETS_RANGE_NAME` | No | Sheet range (default: "Sheet1!A:Z") |
 | `DATA_DIR` | No | Directory for state storage (default: /app/data) |
 | `LOG_LEVEL` | No | Logging level: DEBUG, INFO, WARNING, ERROR (default: INFO) |
-| `TEST_MODE` | No | Enable test mode with custom queries (default: false) |
-| `TEST_EMAIL_QUERY` | No | Gmail search query when TEST_MODE=true (e.g., "subject:test") |
+| `TEST_EMAIL_QUERY` | No | Optional Gmail search query to filter emails (e.g., "subject:test") |
 
 ### Volume Mounts
 
@@ -166,25 +165,24 @@ docker run -d \
   ghcr.io/valkozaur/fleetmanager-email-processor:latest
 ```
 
-### Test Mode
+### Custom Email Filtering
 
-Test mode allows you to process specific emails without marking them as read:
+You can filter emails using Gmail search syntax with `TEST_EMAIL_QUERY`. This supplements the timestamp-based filtering:
 
 ```bash
 docker run -d \
   --name email-processor \
   -v $(pwd)/credentials:/app/credentials \
-  -e TEST_MODE=true \
   -e TEST_EMAIL_QUERY="subject:test order" \
   # ... other env vars ...
   ghcr.io/valkozaur/fleetmanager-email-processor:latest
 ```
 
-Useful test queries:
-- `subject:"test order"` - Emails with specific subject
-- `from:sender@example.com` - Emails from specific sender
-- `after:2025/10/01` - Emails after specific date
-- `is:unread` - Only unread emails
+Useful query examples:
+- `subject:"test order"` - Only emails with "test order" in subject
+- `from:sender@example.com` - Only emails from specific sender
+- `subject:test` - Simple keyword match
+- Queries are combined with timestamp filter (fetches emails after last check)
 
 ### View Logs
 
@@ -236,9 +234,10 @@ Verify that:
 
 ### No emails being processed
 Check:
-- Gmail account has unread emails
+- Gmail account has new emails since last check timestamp
 - Service account has proper Gmail API access
-- Use `TEST_MODE=true` with specific query to debug
+- Use `TEST_EMAIL_QUERY="subject:test"` with specific query to debug
+- Check `/app/data/last_check.txt` for watermark timestamp
 
 ## Image Tags
 

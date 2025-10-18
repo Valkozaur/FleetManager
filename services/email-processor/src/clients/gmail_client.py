@@ -61,14 +61,23 @@ class GmailClient:
             logger.error(f"Authentication failed: {e}")
             raise
 
-    def get_emails(self, max_results: int = 10,
+    def get_emails(self, max_results: int = 100,
                    query: str = '',
-                   after_timestamp: Optional[str] = None) -> List[Email]:
-        """Fetch emails from Gmail"""
+                   after_timestamp: Optional[int] = None) -> List[Email]:
+        """Fetch emails from Gmail
+        
+        Args:
+            max_results: Maximum number of emails to fetch (default 100 for 5-min polling)
+            query: Gmail search query
+            after_timestamp: Unix timestamp (seconds) to fetch emails after.
+                           Uses a 2-second buffer to avoid missing emails at same second.
+        """
         try:
-            # Build query
+            # Build query with buffer to handle same-second arrivals
             if after_timestamp:
-                query += f' after:{after_timestamp}'
+                # Subtract 2 seconds as buffer to catch emails at same timestamp
+                buffer_timestamp = after_timestamp - 2
+                query += f' after:{buffer_timestamp}'
 
             # Get messages
             result = self.service.users().messages().list(
@@ -215,31 +224,38 @@ class GmailClient:
             logger.error(f"Failed to download attachment {attachment_id}: {e}")
             return None
 
-    def get_last_check_timestamp(self) -> Optional[str]:
-        """Get the timestamp of the last check"""
+    def get_last_check_timestamp(self) -> Optional[int]:
+        """Get the Unix timestamp of the last check"""
         timestamp_file = os.path.join(self.data_dir, 'last_check.txt')
 
         if os.path.exists(timestamp_file):
             try:
                 with open(timestamp_file, 'r') as f:
-                    return f.read().strip()
+                    return int(f.read().strip())
             except Exception as e:
                 logger.error(f"Failed to read last check timestamp: {e}")
 
         return None
 
-    def save_last_check_timestamp(self, timestamp: str = None):
-        """Save the timestamp of the last check"""
+    def save_last_check_timestamp(self, timestamp: int = None):
+        """Save the Unix timestamp of the last check
+        
+        Args:
+            timestamp: Unix timestamp (seconds). If None, uses current time.
+                      Should be the maximum internalDate from successfully processed emails.
+        """
         if timestamp is None:
-            # Use Gmail's internal date format
-            timestamp = datetime.now().strftime('%Y/%m/%d')
+            # Use current Unix timestamp (seconds since epoch)
+            timestamp = int(datetime.now().timestamp())
 
         timestamp_file = os.path.join(self.data_dir, 'last_check.txt')
 
         try:
             with open(timestamp_file, 'w') as f:
-                f.write(timestamp)
-            logger.info(f"Saved last check timestamp: {timestamp}")
+                f.write(str(timestamp))
+            # Convert to readable format for logging
+            readable_time = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            logger.info(f"Saved last check timestamp: {timestamp} ({readable_time})")
         except Exception as e:
             logger.error(f"Failed to save last check timestamp: {e}")
 
