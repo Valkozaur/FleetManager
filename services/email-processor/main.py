@@ -18,7 +18,7 @@ from services.classifier import MailClassifier, MailClassificationEnum
 from services.logistics_data_extract import LogisticsDataExtractor
 from services.address_cleaner import AddressCleanerService
 from clients.gmail_client import GmailClient
-from clients.processed_email_tracker import ProcessedEmailTracker
+
 from clients.google_maps_client import GoogleMapsClient
 from clients.google_sheets_client import GoogleSheetsClient
 from pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
@@ -129,46 +129,23 @@ def run():
         pipeline = _create_processing_pipeline(classifier, extractor, address_cleaner, google_maps_client, sheets_client)
         logger.info(f"Created processing pipeline with {len(pipeline.steps)} steps")
 
-        # Processed email tracker
-        processed_tracker = ProcessedEmailTracker(data_dir=data_dir)
 
-        # Optional: Custom query for debugging/testing (supplements timestamp filter)
+
+        # Optional: Custom query for debugging/testing (used for initial scan)
         custom_query = os.getenv('TEST_EMAIL_QUERY', '').strip()
         if custom_query:
-            logger.info(f"Using custom Gmail query filter: '{custom_query}'")
-
-        # Get last check timestamp to fetch emails after that time
-        last_check = gmail_client.get_last_check_timestamp()
-        if last_check:
-            from datetime import datetime
-            readable_time = datetime.fromtimestamp(last_check).strftime('%Y-%m-%d %H:%M:%S')
-            logger.info(f"Fetching emails after: {readable_time}")
-        else:
-            logger.info("No last check timestamp found. Fetching emails from the last hour.")
-            # If no last check, default to 1 hour ago (safe for 5-minute intervals)
-            from datetime import datetime, timedelta
-            last_check = int((datetime.now() - timedelta(hours=1)).timestamp())
-
-        # Fetch emails
-        emails = gmail_client.get_emails(query=custom_query, after_timestamp=last_check)
+            logger.info(f"Using custom Gmail query filter for initial scan: '{custom_query}'")
+        
+        # Fetch emails using the new history-based mechanism
+        # The GmailClient now handles historyId and deduplication internally.
+        emails = gmail_client.get_emails(query=custom_query)
         logger.info(f"Fetched {len(emails)} emails")
 
         # Process each email through the pipeline
         successful_processing = 0
         failed_processing = 0
-        max_timestamp = last_check if last_check else 0
 
         for email in emails:
-            # Deduplication: Skip if already processed (handles same-second arrivals)
-            if processed_tracker.is_processed(email.id):
-                logger.info(f"Skipping already processed email: {email.subject} (ID: {email.id})")
-                continue
-            
-            # Track the maximum timestamp from fetched emails
-            email_timestamp = int(email.received_at.timestamp())
-            if email_timestamp > max_timestamp:
-                max_timestamp = email_timestamp
-            
             try:
                 logger.info(f"Processing email with subject: {email.subject}")
 
@@ -182,13 +159,11 @@ def run():
                 if processed_context.is_order_email() and processed_context.has_logistics_data():
                     logger.info(f"Successfully processed order email. Logistics data: {processed_context.logistics_data}")
                     successful_processing += 1
-                    processed_tracker.mark_processed(email.id)
                 elif processed_context.is_order_email():
                     logger.warning(f"Email classified as order but failed to extract logistics data. Errors: {processed_context.errors}")
                     failed_processing += 1
                 else:
                     logger.info(f"Email classified as {processed_context.classification}. Skipping logistics extraction.")
-                    processed_tracker.mark_processed(email.id)
 
             except PipelineExecutionError as e:
                 logger.error(f"Pipeline execution failed for email '{email.subject}': {e}")
@@ -198,13 +173,6 @@ def run():
                 failed_processing += 1
 
         logger.info(f"Email processing completed. Successful: {successful_processing}, Failed: {failed_processing}")
-        
-        # Save the maximum timestamp from processed emails as watermark for next run
-        # This ensures we don't miss emails that arrived at the same second
-        if max_timestamp > (last_check if last_check else 0):
-            gmail_client.save_last_check_timestamp(max_timestamp)
-        else:
-            logger.info("No new emails processed, keeping existing watermark")
         
         return failed_processing == 0
 
