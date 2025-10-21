@@ -3,6 +3,7 @@ import logging
 import base64
 from datetime import datetime
 from typing import Optional, Dict, Any, List
+
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -61,23 +62,38 @@ class GmailClient:
             logger.error(f"Authentication failed: {e}")
             raise
 
-    def get_emails(self, max_results: int = 100,
-                   query: str = '',
-                   after_timestamp: Optional[int] = None) -> List[Email]:
-        """Fetch emails from Gmail
-        
-        Args:
-            max_results: Maximum number of emails to fetch (default 100 for 5-min polling)
-            query: Gmail search query
-            after_timestamp: Unix timestamp (seconds) to fetch emails after.
-                           Uses a 2-second buffer to avoid missing emails at same second.
+    def get_emails(self, query: str = '', max_results_initial_scan: int = 100) -> List[Email]:
         """
+        Fetch new emails since the last check using history API.
+        If it's the first run, it performs a full scan.
+
+        Args:
+            query: Gmail search query for the initial scan.
+            max_results_initial_scan: Maximum number of emails to fetch for the initial scan.
+        """
+        last_history_id = self.get_last_history_id()
+
+        if last_history_id:
+            # Subsequent run: use history.list
+            return self._sync_new_emails(last_history_id)
+        else:
+            # First run: do a full scan
+            return self._initial_email_scan(query, max_results=max_results_initial_scan)
+
+    def _initial_email_scan(self, query: str, max_results: int = 100) -> List[Email]:
+        """
+        Performs an initial scan of all emails, saves the current historyId,
+        and returns the emails.
+        """
+        logger.info("No last history ID found. Performing initial email scan.")
         try:
-            # Build query with buffer to handle same-second arrivals
-            if after_timestamp:
-                # Subtract 2 seconds as buffer to catch emails at same timestamp
-                buffer_timestamp = after_timestamp - 2
-                query += f' after:{buffer_timestamp}'
+            # Get the current historyId
+            profile = self.service.users().getProfile(userId='me').execute()
+            history_id = profile.get('historyId')
+
+            if not history_id:
+                logger.error("Could not retrieve start historyId. Aborting initial scan.")
+                return []
 
             # Get messages
             result = self.service.users().messages().list(
@@ -87,24 +103,96 @@ class GmailClient:
             ).execute()
 
             messages = result.get('messages', [])
+            
             emails = []
-
             for msg in messages:
                 try:
                     email_data = self._get_email_details(msg['id'])
                     emails.append(email_data)
                 except Exception as e:
-                    logger.error(f"Failed to fetch email {msg['id']}: {e}")
+                    logger.error(f"Failed to fetch email {msg['id']} during initial scan: {e}")
                     continue
+            
+            self.save_last_history_id(history_id)
 
-            logger.info(f"Successfully fetched {len(emails)} emails")
+            logger.info(f"Initial scan fetched {len(emails)} emails. History ID {history_id} saved.")
             return emails
 
         except HttpError as e:
-            logger.error(f"Gmail API error: {e}")
+            logger.error(f"Gmail API error during initial scan: {e}")
             raise
         except Exception as e:
-            logger.error(f"Failed to fetch emails: {e}")
+            logger.error(f"Failed to perform initial email scan: {e}")
+            raise
+
+    def _sync_new_emails(self, start_history_id: str) -> List[Email]:
+        """
+        Fetches new emails using history.list since the last known historyId.
+        """
+        logger.info(f"Syncing new emails since history ID: {start_history_id}")
+        try:
+            history_request = self.service.users().history().list(
+                userId='me',
+                startHistoryId=start_history_id,
+                historyTypes=['messageAdded']
+            )
+            
+            emails = []
+            new_history_id = start_history_id
+            all_new_message_ids = []
+
+            while history_request is not None:
+                history = history_request.execute()
+                changes = history.get('history', [])
+                
+                current_page_message_ids = []
+                if changes:
+                    for change in changes:
+                        if 'messagesAdded' in change:
+                            for msg_added in change['messagesAdded']:
+                                msg_id = msg_added['message']['id']
+                                if msg_id not in all_new_message_ids:
+                                    current_page_message_ids.append(msg_id)
+                                    all_new_message_ids.append(msg_id)
+
+                for msg_id in current_page_message_ids:
+                    try:
+                        email_data = self._get_email_details(msg_id)
+                        emails.append(email_data)
+                    except Exception as e:
+                        logger.error(f"Failed to fetch new email {msg_id} from history: {e}")
+                        continue
+                
+                next_page_token = history.get('nextPageToken')
+                if next_page_token:
+                    history_request = self.service.users().history().list_next(
+                        previous_request=history_request,
+                        previous_response=history
+                    )
+                else:
+                    history_request = None
+
+                if 'historyId' in history:
+                    new_history_id = history['historyId']
+
+            if new_history_id != start_history_id:
+                self.save_last_history_id(new_history_id)
+                logger.info(f"Synced and fetched {len(emails)} new emails. New history ID {new_history_id} saved.")
+            else:
+                logger.info("No new emails since last sync.")
+
+            return emails
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                logger.warning(f"History ID {start_history_id} not found. It might be too old. "
+                               "Performing a full rescan.")
+                return self._initial_email_scan(query='')
+            else:
+                logger.error(f"Gmail API error during history sync: {e}")
+                raise
+        except Exception as e:
+            logger.error(f"Failed to sync new emails: {e}")
             raise
 
     def _get_email_details(self, msg_id: str) -> Email:
@@ -224,38 +312,26 @@ class GmailClient:
             logger.error(f"Failed to download attachment {attachment_id}: {e}")
             return None
 
-    def get_last_check_timestamp(self) -> Optional[int]:
-        """Get the Unix timestamp of the last check"""
-        timestamp_file = os.path.join(self.data_dir, 'last_check.txt')
+    def get_last_history_id(self) -> Optional[str]:
+        """Get the history ID of the last check."""
+        history_id_file = os.path.join(self.data_dir, 'last_history_id.txt')
 
-        if os.path.exists(timestamp_file):
+        if os.path.exists(history_id_file):
             try:
-                with open(timestamp_file, 'r') as f:
-                    return int(f.read().strip())
+                with open(history_id_file, 'r') as f:
+                    return f.read().strip()
             except Exception as e:
-                logger.error(f"Failed to read last check timestamp: {e}")
+                logger.error(f"Failed to read last history ID: {e}")
 
         return None
 
-    def save_last_check_timestamp(self, timestamp: int = None):
-        """Save the Unix timestamp of the last check
-        
-        Args:
-            timestamp: Unix timestamp (seconds). If None, uses current time.
-                      Should be the maximum internalDate from successfully processed emails.
-        """
-        if timestamp is None:
-            # Use current Unix timestamp (seconds since epoch)
-            timestamp = int(datetime.now().timestamp())
-
-        timestamp_file = os.path.join(self.data_dir, 'last_check.txt')
+    def save_last_history_id(self, history_id: str):
+        """Save the history ID of the last check."""
+        history_id_file = os.path.join(self.data_dir, 'last_history_id.txt')
 
         try:
-            with open(timestamp_file, 'w') as f:
-                f.write(str(timestamp))
-            # Convert to readable format for logging
-            readable_time = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-            logger.info(f"Saved last check timestamp: {timestamp} ({readable_time})")
+            with open(history_id_file, 'w') as f:
+                f.write(str(history_id))
+            logger.info(f"Saved last history ID: {history_id}")
         except Exception as e:
-            logger.error(f"Failed to save last check timestamp: {e}")
-
+            logger.error(f"Failed to save last history ID: {e}")
