@@ -93,7 +93,8 @@ class DatabaseSaveStep(ProcessingStep):
             "cargo_description",
             "weight",
             "vehicle_type",
-            "special_requirements"
+            "special_requirements",
+            "reference_number"
         ]
 
     def _prepare_data(self, context: ProcessingContext) -> dict:
@@ -129,6 +130,7 @@ class DatabaseSaveStep(ProcessingStep):
                 weight=logistics.weight,
                 vehicle_type=logistics.vehicle_type,
                 special_requirements=logistics.special_requirements,
+                reference_number=logistics.reference_number,
                 # Email identifiers
                 email_id=email.id,
                 email_subject=email.subject,
@@ -154,5 +156,6 @@ class DatabaseSaveStep(ProcessingStep):
             "cargo_description": logistics.cargo_description,
             "weight": logistics.weight,
             "vehicle_type": logistics.vehicle_type,
-            "special_requirements": logistics.special_requirements or ""
+            "special_requirements": logistics.special_requirements or "",
+            "reference_number": logistics.reference_number or ""
         }

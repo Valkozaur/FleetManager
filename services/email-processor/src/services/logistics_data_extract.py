@@ -23,12 +23,13 @@ class LogisticsDataExtractor:
         - Weight
         - Vehicle Type
         - Special Requirements (if any)
+        - Reference Number: A unique identifier for the specific transport order or shipment. Look for labels like "Reference Number", "Order ID", "Booking Number", or "Референтен №". This number is used to track the specific cargo and is often found near the cargo description.
 
     ##BE AWARE:
         - You will be provided with email content including subject, body, and possibly attachments.
         - You must base your extraction on the whole information provided (including attachments if any). 
-     """
-
+     """    
+    
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.client = genai.Client(api_key=api_key)
