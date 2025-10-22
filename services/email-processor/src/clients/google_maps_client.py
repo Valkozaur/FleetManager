@@ -42,7 +42,7 @@ class GoogleMapsClient:
             logger.error(f"Unexpected error during geocoding for address '{address}': {e}")
             return None
 
-    def geocode_address(self, address: str) -> Optional[Tuple[str, str]]:
+    def geocode_address(self, address: str) -> Optional[dict]:
         """
         Convert address to coordinates (latitude, longitude)
 
@@ -50,7 +50,7 @@ class GoogleMapsClient:
             address: The address to geocode
 
         Returns:
-            Tuple of (latitude, longitude) as strings, or None if geocoding fails
+            The entire first result object from the Google Maps API, or None if geocoding fails
         """
         if not address or not address.strip():
             logger.warning("Empty address provided for geocoding")
@@ -72,16 +72,8 @@ class GoogleMapsClient:
                 logger.warning(f"No results found for address: {address}")
                 return None
 
-            location = results[0].get('geometry', {}).get('location', {})
-            lat = location.get('lat')
-            lng = location.get('lng')
-
-            if lat is None or lng is None:
-                logger.warning(f"Invalid coordinates received for address: {address}")
-                return None
-
-            logger.info(f"Successfully geocoded address '{address}' to ({lat}, {lng})")
-            return (str(lat), str(lng))
+            # Return the entire first result for detailed analysis
+            return results[0]
 
         except Exception as e:
             logger.error(f"Error during geocoding for address '{address}': {e}")
