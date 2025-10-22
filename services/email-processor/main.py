@@ -16,7 +16,7 @@ sys.path.insert(0, src_root)
 
 from services.classifier import MailClassifier, MailClassificationEnum
 from services.logistics_data_extract import LogisticsDataExtractor
-from services.address_cleaner import AddressCleanerService
+
 from clients.gmail_client import GmailClient
 
 from clients.google_maps_client import GoogleMapsClient
@@ -25,7 +25,7 @@ from pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
 from pipeline.processing_context import ProcessingContext
 from pipeline.steps.classification_step import EmailClassificationStep
 from pipeline.steps.logistics_extraction_step import LogisticsExtractionStep
-from pipeline.steps.address_cleaning_step import AddressCleaningStep
+
 from pipeline.steps.geocoding_step import GeocodingStep
 from pipeline.steps.database_save_step import DatabaseSaveStep
 
@@ -43,14 +43,14 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-def _create_processing_pipeline(classifier: MailClassifier, extractor: LogisticsDataExtractor, address_cleaner: AddressCleanerService, google_maps_client: GoogleMapsClient | None, sheets_client: GoogleSheetsClient | None) -> ProcessingPipeline:
+def _create_processing_pipeline(classifier: MailClassifier, extractor: LogisticsDataExtractor, google_maps_client: GoogleMapsClient | None, sheets_client: GoogleSheetsClient | None) -> ProcessingPipeline:
     """Create and configure the processing pipeline with all steps"""
 
     # Create processing steps
     steps = [
         EmailClassificationStep(classifier),
         LogisticsExtractionStep(extractor),
-        AddressCleaningStep(address_cleaner)
+
     ]
 
     # Add geocoding step only if Google Maps client is available
@@ -100,7 +100,7 @@ def run():
 
         classifier = MailClassifier(api_key=os.getenv('GEMINI_API_KEY'))
         extractor = LogisticsDataExtractor(api_key=os.getenv('GEMINI_API_KEY'))
-        address_cleaner = AddressCleanerService(api_key=os.getenv('GEMINI_API_KEY'))
+
 
         # Initialize Google Maps client for geocoding
         google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
@@ -126,7 +126,7 @@ def run():
 
 
         # Create processing pipeline
-        pipeline = _create_processing_pipeline(classifier, extractor, address_cleaner, google_maps_client, sheets_client)
+        pipeline = _create_processing_pipeline(classifier, extractor, google_maps_client, sheets_client)
         logger.info(f"Created processing pipeline with {len(pipeline.steps)} steps")
 
 
@@ -185,8 +185,7 @@ def run():
             google_maps_client.close()
         if 'sheets_client' in locals() and sheets_client:
             sheets_client.close()
-        if 'address_cleaner' in locals() and address_cleaner:
-            address_cleaner.close()
+
         if 'extractor' in locals() and extractor:
             extractor.close()
         if 'classifier' in locals() and classifier:

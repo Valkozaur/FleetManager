@@ -258,7 +258,7 @@ class TestProcessingPipeline:
         assert pipeline._is_critical_step(logistics_step) is False
         assert pipeline._is_critical_step(geocoding_step) is False
 
-    @patch('src.orders.poller.pipeline.pipeline.logging.getLogger')
+    @patch('src.pipeline.pipeline.logging.getLogger')
     def test_logging_initialization(self, mock_get_logger):
         """Test that logger is properly initialized"""
         mock_logger = Mock()
@@ -273,7 +273,7 @@ class TestProcessingPipeline:
         mock_logger.info.assert_called_once()
         assert "Initialized pipeline with 1 steps" in mock_logger.info.call_args[0][0]
 
-    @patch('src.orders.poller.pipeline.pipeline.logging.getLogger')
+    @patch('src.pipeline.pipeline.logging.getLogger')
     def test_logging_execution(self, mock_get_logger):
         """Test that execution is properly logged"""
         mock_logger = Mock()
