@@ -13,9 +13,4 @@ class LogisticsDataExtract(BaseModel):
     weight: str
     vehicle_type: str
     special_requirements: str | None = None
-
-    # Email identifier fields
-    email_id: str
-    email_subject: str
-    email_sender: str
-    email_date: datetime
+    reference_number: str | None = None
