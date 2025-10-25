@@ -79,6 +79,7 @@ class DatabaseSaveStep(ProcessingStep):
         """Get the column headers for the spreadsheet"""
         return [
             "email_id",
+            "polled_at",
             "email_subject",
             "email_sender",
             "email_date",
@@ -135,13 +136,15 @@ class DatabaseSaveStep(ProcessingStep):
                 email_id=email.id,
                 email_subject=email.subject,
                 email_sender=email.sender,
-                email_date=email.received_at
+                email_date=email.received_at,
+                polled_at=context.start_time
             )
             context.logistics_data = updated_logistics
             logistics = updated_logistics
 
         return {
             "email_id": logistics.email_id,
+            "polled_at": logistics.polled_at.isoformat() if logistics.polled_at else "",
             "email_subject": logistics.email_subject,
             "email_sender": logistics.email_sender,
             "email_date": logistics.email_date.isoformat() if logistics.email_date else "",

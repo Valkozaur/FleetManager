@@ -16,7 +16,8 @@ class LogisticsDataExtract(BaseModel):
     reference_number: str | None = None
 
     # Email identifier fields
-    email_id: str
-    email_subject: str
-    email_sender: str
-    email_date: datetime
+    email_id: str | None = None
+    email_subject: str | None = None
+    email_sender: str | None = None
+    email_date: datetime | None = None
+    polled_at: datetime | None = None
