@@ -312,6 +312,21 @@ class GmailClient:
             logger.error(f"Failed to download attachment {attachment_id}: {e}")
             return None
 
+    def get_email_by_id(self, email_id: str) -> Optional[Email]:
+        """Get a specific email by its ID."""
+        try:
+            return self._get_email_details(email_id)
+        except HttpError as e:
+            if e.resp.status == 404:
+                logger.warning(f"Email with ID {email_id} not found.")
+                return None
+            else:
+                logger.error(f"Gmail API error while fetching email {email_id}: {e}")
+                raise
+        except Exception as e:
+            logger.error(f"Failed to fetch email by ID {email_id}: {e}")
+            raise
+
     def get_last_history_id(self) -> Optional[str]:
         """Get the history ID of the last check."""
         history_id_file = os.path.join(self.data_dir, 'last_history_id.txt')

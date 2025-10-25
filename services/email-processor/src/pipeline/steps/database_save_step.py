@@ -79,6 +79,7 @@ class DatabaseSaveStep(ProcessingStep):
         """Get the column headers for the spreadsheet"""
         return [
             "email_id",
+            "polled_at",
             "email_subject",
             "email_sender",
             "email_date",
@@ -114,37 +115,12 @@ class DatabaseSaveStep(ProcessingStep):
         cleaned_loading = context.get_custom_data('cleaned_loading_address', '')
         cleaned_unloading = context.get_custom_data('cleaned_unloading_address', '')
 
-        # Update logistics data with email identifiers if not already present
-        if logistics.email_id is None:
-            # Create updated logistics data with email identifiers
-            from models.logistics import LogisticsDataExtract
-            updated_logistics = LogisticsDataExtract(
-                # Logistics fields
-                loading_address=logistics.loading_address,
-                unloading_address=logistics.unloading_address,
-                loading_date=logistics.loading_date,
-                unloading_date=logistics.unloading_date,
-                loading_coordinates=logistics.loading_coordinates,
-                unloading_coordinates=logistics.unloading_coordinates,
-                cargo_description=logistics.cargo_description,
-                weight=logistics.weight,
-                vehicle_type=logistics.vehicle_type,
-                special_requirements=logistics.special_requirements,
-                reference_number=logistics.reference_number,
-                # Email identifiers
-                email_id=email.id,
-                email_subject=email.subject,
-                email_sender=email.sender,
-                email_date=email.received_at
-            )
-            context.logistics_data = updated_logistics
-            logistics = updated_logistics
-
         return {
-            "email_id": logistics.email_id,
-            "email_subject": logistics.email_subject,
-            "email_sender": logistics.email_sender,
-            "email_date": logistics.email_date.isoformat() if logistics.email_date else "",
+            "email_id": email.id,
+            "polled_at": context.start_time.isoformat() if context.start_time else "",
+            "email_subject": email.subject,
+            "email_sender": email.sender,
+            "email_date": email.received_at.isoformat() if email.received_at else "",
             "loading_address": logistics.loading_address,
             "loading_address_cleaned": cleaned_loading,
             "unloading_address": logistics.unloading_address,

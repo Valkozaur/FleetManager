@@ -43,6 +43,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+def main():
+    """Main entry point"""
+    success = run()
+    # Exit with appropriate code for cron
+    sys.exit(0 if success else 1)
+
 def _create_processing_pipeline(classifier: MailClassifier, extractor: LogisticsDataExtractor, google_maps_client: GoogleMapsClient | None, sheets_client: GoogleSheetsClient | None) -> ProcessingPipeline:
     """Create and configure the processing pipeline with all steps"""
 
@@ -129,16 +135,26 @@ def run():
         pipeline = _create_processing_pipeline(classifier, extractor, google_maps_client, sheets_client)
         logger.info(f"Created processing pipeline with {len(pipeline.steps)} steps")
 
-
-
-        # Optional: Custom query for debugging/testing (used for initial scan)
-        custom_query = os.getenv('TEST_EMAIL_QUERY', '').strip()
-        if custom_query:
-            logger.info(f"Using custom Gmail query filter for initial scan: '{custom_query}'")
+        # Check for --email-id argument
+        if '--email-id' in sys.argv:
+            try:
+                email_id_index = sys.argv.index('--email-id') + 1
+                email_id = sys.argv[email_id_index]
+                logger.info(f"Fetching specific email with ID: {email_id}")
+                email = gmail_client.get_email_by_id(email_id)
+                if email:
+                    emails = [email]
+                else:
+                    logger.warning(f"Email with ID {email_id} not found.")
+                    emails = []
+            except (IndexError, ValueError):
+                logger.error("Invalid --email-id argument. Usage: --email-id <ID>")
+                return False
+        else:
+            # Fetch emails using the new history-based mechanism
+            # The GmailClient now handles historyId and deduplication internally.
+            emails = gmail_client.get_emails()
         
-        # Fetch emails using the new history-based mechanism
-        # The GmailClient now handles historyId and deduplication internally.
-        emails = gmail_client.get_emails(query=custom_query)
         logger.info(f"Fetched {len(emails)} emails")
 
         # Process each email through the pipeline
@@ -190,13 +206,6 @@ def run():
             extractor.close()
         if 'classifier' in locals() and classifier:
             classifier.close()
-
-
-def main():
-    """Main entry point"""
-    success = run()
-    # Exit with appropriate code for cron
-    sys.exit(0 if success else 1)
 
 if __name__ == '__main__':
     main()
