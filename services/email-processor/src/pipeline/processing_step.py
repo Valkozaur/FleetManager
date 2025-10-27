@@ -13,6 +13,7 @@ class ProcessingOrder(IntEnum):
     ADDRESS_CLEANING = 3
     GEOCODING = 4
     DATABASE_SAVE = 5
+    POSTGRES_SAVE = 6
 
 
 class ProcessingResult:

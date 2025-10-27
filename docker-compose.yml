@@ -1,6 +1,27 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: fleetmanager-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fleetmanager}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fleetmanager_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-fleetmanager}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fleetmanager}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fleetmanager-network
+
   # Email Processing Service
   email-processor:
     build:
@@ -29,6 +50,8 @@ services:
       - fleetmanager-network
 
 volumes:
+  postgres_data:
+    driver: local
   email_poller_data:
     driver: local
   email_poller_logs:
