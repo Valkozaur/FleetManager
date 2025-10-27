@@ -12,48 +12,57 @@ class GeocodingStep(ProcessingStep):
         super().__init__(ProcessingOrder.GEOCODING)
         self.google_maps_client = google_maps_client
 
-    def _geocode_single_address(self, original_address: str) -> Optional[str]:
+    def _geocode_address(self, original_address: str) -> Optional[str]:
         """
-        Attempts to geocode an address, first with the original string,
-        and then with a simplified version if the first attempt is not precise.
+        Geocodes an address using a four-tier waterfall strategy.
         Returns formatted coordinates string or None.
         """
         if not original_address:
             return None
 
-        # Attempt 1: Geocode the original address
-        self.logger.info(f"Attempting to geocode original address: {original_address}")
-        geo_result = self.google_maps_client.geocode_address(original_address)
+        # Geocode original address
+        self.logger.info(f"Geocoding original address: {original_address}")
+        geocode_result = self.google_maps_client.geocode_address(original_address)
 
-        # Check for a high-quality result
-        if geo_result:
-            location = geo_result.get('geometry', {}).get('location', {})
-            location_type = geo_result.get('geometry', {}).get('location_type')
-            partial_match = geo_result.get('partial_match', False)
+        if geocode_result:
+            location = geocode_result.get('geometry', {}).get('location', {})
+            location_type = geocode_result.get('geometry', {}).get('location_type')
+            partial_match = geocode_result.get('partial_match', False)
+            lat, lng = location.get('lat'), location.get('lng')
 
+            # Attempt 1: The "Golden Match"
             if location_type == 'ROOFTOP' and not partial_match:
-                self.logger.info(f"Got high-confidence 'ROOFTOP' match for original address.")
-                lat, lng = location.get('lat'), location.get('lng')
+                self.logger.info("Success with Attempt 1 (Golden Match)")
                 return f"{lat}, {lng}"
 
-            self.logger.warning(f"Original geocode result was not precise (type: {location_type}, partial: {partial_match}).")
+            # Attempt 2: The "Confirmed Match"
+            if location_type == 'ROOFTOP':
+                self.logger.info("Success with Attempt 2 (Confirmed ROOFTOP Match)")
+                return f"{lat}, {lng}"
 
-        # Attempt 2: Simplify the address and retry
+        # Attempt 3: The "Validated Simplified Match"
         simplified_address = AddressSimplifier.simplify_address(original_address)
-        self.logger.info(f"Retrying with simplified address: {simplified_address}")
-        geo_result_simplified = self.google_maps_client.geocode_address(simplified_address)
+        self.logger.info(f"Attempting geocoding with simplified address: {simplified_address}")
+        simplified_result = self.google_maps_client.geocode_address(simplified_address)
 
-        if geo_result_simplified:
-            # Final validation using is_strict_match
-            formatted_address = geo_result_simplified.get('formatted_address', '')
-            if AddressSimplifier.is_strict_match(simplified_address, formatted_address):
-                location = geo_result_simplified.get('geometry', {}).get('location', {})
-                lat, lng = location.get('lat'), location.get('lng')
-                self.logger.info(f"Successfully geocoded simplified address with strict match.")
-                return f"{lat}, {lng}"
-            else:
-                self.logger.error(f"Geocoding of simplified address FAILED strict match validation.")
+        if simplified_result:
+            simplified_location_type = simplified_result.get('geometry', {}).get('location_type')
+            if simplified_location_type in ['ROOFTOP', 'RANGE_INTERPOLATED']:
+                formatted_address = simplified_result.get('formatted_address', '')
+                if AddressSimplifier.is_strict_match(simplified_address, formatted_address):
+                    location = simplified_result.get('geometry', {}).get('location', {})
+                    lat, lng = location.get('lat'), location.get('lng')
+                    self.logger.info("Success with Attempt 3 (Validated Simplified Match)")
+                    return f"{lat}, {lng}"
 
+        # Attempt 4: The "Best Effort Match"
+        if geocode_result and geocode_result.get('geometry', {}).get('location_type') == 'GEOMETRIC_CENTER':
+            location = geocode_result.get('geometry', {}).get('location', {})
+            lat, lng = location.get('lat'), location.get('lng')
+            self.logger.info("Success with Attempt 4 (Best Effort GEOMETRIC_CENTER Match)")
+            return f"{lat}, {lng}"
+
+        self.logger.error(f"All geocoding attempts failed for address: {original_address}")
         return None
 
     def process(self, context: ProcessingContext) -> ProcessingResult:
@@ -78,7 +87,7 @@ class GeocodingStep(ProcessingStep):
             coordinates_filled = 0
 
             if not context.logistics_data.loading_coordinates and context.logistics_data.loading_address:
-                coords = self._geocode_single_address(context.logistics_data.loading_address)
+                coords = self._geocode_address(context.logistics_data.loading_address)
                 if coords:
                     context.logistics_data.loading_coordinates = coords
                     coordinates_filled += 1
@@ -86,7 +95,7 @@ class GeocodingStep(ProcessingStep):
                     self.logger.error(f"All geocoding attempts failed for loading address: {context.logistics_data.loading_address}")
 
             if not context.logistics_data.unloading_coordinates and context.logistics_data.unloading_address:
-                coords = self._geocode_single_address(context.logistics_data.unloading_address)
+                coords = self._geocode_address(context.logistics_data.unloading_address)
                 if coords:
                     context.logistics_data.unloading_coordinates = coords
                     coordinates_filled += 1
