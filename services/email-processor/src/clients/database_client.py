@@ -3,17 +3,11 @@ PostgreSQL Database Client for FleetManager
 Handles database connections and order persistence
 """
 
-import os
-import sys
 import logging
 from typing import Optional
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-
-# Add shared models to path
-shared_root = os.path.join(os.path.dirname(__file__), '../../../../shared')
-sys.path.insert(0, shared_root)
 
 from models.orm import Base, Order
 from models.logistics import LogisticsDataExtract
