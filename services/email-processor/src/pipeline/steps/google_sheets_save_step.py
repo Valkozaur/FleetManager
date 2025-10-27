@@ -3,7 +3,7 @@ from clients.google_sheets_client import GoogleSheetsClient
 from pipeline.processing_context import ProcessingContext
 
 
-class DatabaseSaveStep(ProcessingStep):
+class GoogleSheetsSaveStep(ProcessingStep):
     """Step for saving logistics data to Google Sheets"""
 
     def __init__(self, sheets_client: GoogleSheetsClient):
@@ -125,8 +125,8 @@ class DatabaseSaveStep(ProcessingStep):
             "loading_address_cleaned": cleaned_loading,
             "unloading_address": logistics.unloading_address,
             "unloading_address_cleaned": cleaned_unloading,
-            "loading_date": logistics.loading_date,
-            "unloading_date": logistics.unloading_date,
+            "loading_date": logistics.loading_date.isoformat() if logistics.loading_date else "",
+            "unloading_date": logistics.unloading_date.isoformat() if logistics.unloading_date else "",
             "loading_coordinates": logistics.loading_coordinates or "",
             "unloading_coordinates": logistics.unloading_coordinates or "",
             "cargo_description": logistics.cargo_description,

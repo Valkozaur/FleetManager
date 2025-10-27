@@ -1,12 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 class LogisticsDataExtract(BaseModel):
+    """Extract logistics data from transportation/shipping emails. Dates should be in ISO 8601 format (YYYY-MM-DDTHH:MM:SS)."""
     # Original logistics fields
     loading_address: str
     unloading_address: str
-    loading_date: str
-    unloading_date: str
+    loading_date: datetime = Field(description="Loading date and time in ISO 8601 format")
+    unloading_date: datetime = Field(description="Unloading date and time in ISO 8601 format")
     loading_coordinates: str | None = None
     unloading_coordinates: str | None = None
     cargo_description: str

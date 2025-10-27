@@ -21,13 +21,15 @@ from clients.gmail_client import GmailClient
 
 from clients.google_maps_client import GoogleMapsClient
 from clients.google_sheets_client import GoogleSheetsClient
+from clients.database_client import DatabaseClient
 from pipeline.pipeline import ProcessingPipeline, PipelineExecutionError
 from pipeline.processing_context import ProcessingContext
 from pipeline.steps.classification_step import EmailClassificationStep
 from pipeline.steps.logistics_extraction_step import LogisticsExtractionStep
 
 from pipeline.steps.geocoding_step import GeocodingStep
-from pipeline.steps.database_save_step import DatabaseSaveStep
+from pipeline.steps.google_sheets_save_step import GoogleSheetsSaveStep
+from pipeline.steps.postgres_save_step import PostgresSaveStep
 
 # Load environment variables
 load_dotenv()
@@ -49,7 +51,7 @@ def main():
     # Exit with appropriate code for cron
     sys.exit(0 if success else 1)
 
-def _create_processing_pipeline(classifier: MailClassifier, extractor: LogisticsDataExtractor, google_maps_client: GoogleMapsClient | None, sheets_client: GoogleSheetsClient | None) -> ProcessingPipeline:
+def _create_processing_pipeline(classifier: MailClassifier, extractor: LogisticsDataExtractor, google_maps_client: GoogleMapsClient | None, sheets_client: GoogleSheetsClient | None, db_client: DatabaseClient | None) -> ProcessingPipeline:
     """Create and configure the processing pipeline with all steps"""
 
     # Create processing steps
@@ -63,9 +65,13 @@ def _create_processing_pipeline(classifier: MailClassifier, extractor: Logistics
     if google_maps_client:
         steps.append(GeocodingStep(google_maps_client))
 
-    # Add database save step only if Sheets client is available
+    # Add Google Sheets save step only if Sheets client is available
     if sheets_client:
-        steps.append(DatabaseSaveStep(sheets_client))
+        steps.append(GoogleSheetsSaveStep(sheets_client))
+
+    # Add PostgreSQL save step only if database client is available
+    if db_client:
+        steps.append(PostgresSaveStep(db_client))
 
     return ProcessingPipeline(steps)
 
@@ -120,7 +126,7 @@ def run():
                     service_account_file=service_account_file
                 )
                 if not sheets_client.authenticate():
-                    logger.warning("Failed to authenticate with Google Sheets API. Database saving will be disabled.")
+                    logger.warning("Failed to authenticate with Google Sheets API. Google Sheets saving will be disabled.")
                     sheets_client = None
                 else:
                     logger.info("Successfully authenticated with Google Sheets API")
@@ -128,11 +134,33 @@ def run():
                 logger.warning(f"Failed to initialize Google Sheets client: {e}")
                 sheets_client = None
         else:
-            logger.info("GOOGLE_SHEETS_SPREADSHEET_ID not set. Database saving will be disabled.")
+            logger.info("GOOGLE_SHEETS_SPREADSHEET_ID not set. Google Sheets saving will be disabled.")
 
+        # Initialize PostgreSQL database client
+        db_client = None
+        database_url = os.getenv('DATABASE_URL')
+        if database_url:
+            try:
+                db_client = DatabaseClient(database_url=database_url)
+                if db_client.test_connection():
+                    logger.info("Successfully connected to PostgreSQL database")
+                    # Initialize database tables
+                    if db_client.initialize_database():
+                        logger.info("Database tables initialized")
+                    else:
+                        logger.warning("Failed to initialize database tables. PostgreSQL saving will be disabled.")
+                        db_client = None
+                else:
+                    logger.warning("Failed to connect to PostgreSQL. PostgreSQL saving will be disabled.")
+                    db_client = None
+            except Exception as e:
+                logger.warning(f"Failed to initialize PostgreSQL client: {e}")
+                db_client = None
+        else:
+            logger.info("DATABASE_URL not set. PostgreSQL saving will be disabled.")
 
         # Create processing pipeline
-        pipeline = _create_processing_pipeline(classifier, extractor, google_maps_client, sheets_client)
+        pipeline = _create_processing_pipeline(classifier, extractor, google_maps_client, sheets_client, db_client)
         logger.info(f"Created processing pipeline with {len(pipeline.steps)} steps")
 
         # Check for --email-id argument
@@ -201,6 +229,8 @@ def run():
             google_maps_client.close()
         if 'sheets_client' in locals() and sheets_client:
             sheets_client.close()
+        if 'db_client' in locals() and db_client:
+            db_client.close()
 
         if 'extractor' in locals() and extractor:
             extractor.close()
