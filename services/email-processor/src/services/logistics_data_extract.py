@@ -10,26 +10,6 @@ logger = logging.getLogger(__name__)
 class LogisticsDataExtractor:
     """Service to extract logistics data using Google Gemini Developer API"""
     
-    EXTRACTION_INSTRUCTIONS = """
-     You are a logistics data extraction assistant used within a truck fleet management system.
-     Your task is to extract the following logistics information from the provided email content:
-        - Loading Address
-        - Unloading Address
-        - Loading Date
-        - Unloading Date
-        - Loading Coordinates (if available)
-        - Unloading Coordinates (if available)
-        - Cargo Description
-        - Weight
-        - Vehicle Type
-        - Special Requirements (if any)
-        - Reference Number: A unique identifier for the specific transport order or shipment. Look for labels like "Reference Number", "Order ID", "Booking Number", or "Референтен №". This number is used to track the specific cargo and is often found near the cargo description.
-
-    ##BE AWARE:
-        - You will be provided with email content including subject, body, and possibly attachments.
-        - You must base your extraction on the whole information provided (including attachments if any). 
-     """    
-    
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.client = genai.Client(api_key=api_key)
@@ -53,7 +33,7 @@ class LogisticsDataExtractor:
                 contents=parts,
                 config=types.GenerateContentConfig(
                     temperature=0.1,
-                    system_instruction=self.EXTRACTION_INSTRUCTIONS,
+                    system_instruction=LogisticsDataExtract.__doc__,
                     response_mime_type='application/json',
                     response_schema=LogisticsDataExtract
                 )
