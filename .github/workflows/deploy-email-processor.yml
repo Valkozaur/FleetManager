@@ -103,6 +103,6 @@ jobs:
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             cd fleetmanager
-            docker compose pull
+            docker compose pull email-processor
   
           

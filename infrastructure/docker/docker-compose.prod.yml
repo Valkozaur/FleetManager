@@ -1,4 +1,4 @@
- services:
+services:
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
@@ -34,13 +34,13 @@
     profiles:
       - manual
     env_file:
-      - /opt/fleetmanager/.env
+      - .env
     volumes:
       # Persist data and tokens
       - email_poller_data:/app/data
       - email_poller_logs:/app/logs
       # Mount credentials securely
-      - /opt/fleetmanager/credentials:/app/credentials:ro
+      - ./credentials:/app/credentials:ro
     environment:
       - DATA_DIR=/app/data
     mem_limit: 512m
