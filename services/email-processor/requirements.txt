@@ -10,3 +10,9 @@ structlog==25.5.0
 pydantic==2.12.3
 sqlalchemy==2.0.44
 psycopg2-binary==2.9.11
+opentelemetry-api==1.25.0
+opentelemetry-sdk==1.25.0
+opentelemetry-exporter-otlp==1.25.0
+opentelemetry-instrumentation==0.46b0
+opentelemetry-instrumentation-requests==0.46b0
+opentelemetry-instrumentation-logging==0.46b0

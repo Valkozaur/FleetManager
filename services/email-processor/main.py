@@ -8,6 +8,7 @@ import os
 import sys
 import logging
 from dotenv import load_dotenv
+from telemetry import configure_opentelemetry
 
 # Add src directory to Python path for absolute imports
 main_root = os.path.dirname(os.path.abspath(__file__))
@@ -77,6 +78,9 @@ def _create_processing_pipeline(classifier: MailClassifier, extractor: Logistics
 
 def run():
     """Run pipeline"""
+    # Configure OpenTelemetry
+    configure_opentelemetry()
+
     # Reconfigure logging based on environment variables
     log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
     logger.setLevel(log_level)

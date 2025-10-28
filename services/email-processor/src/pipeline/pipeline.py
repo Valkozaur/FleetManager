@@ -1,5 +1,6 @@
 from typing import List, Optional
 import logging
+from opentelemetry import trace
 
 from .processing_step import ProcessingStep, ProcessingResult, ProcessingOrder
 from .processing_context import ProcessingContext
@@ -47,42 +48,54 @@ class ProcessingPipeline:
             PipelineExecutionError: If any critical step fails
         """
         self.logger.info(f"Starting pipeline execution for email: {context.email.subject}")
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("pipeline.execute") as parent_span:
+            parent_span.set_attribute("email.subject", context.email.subject)
+            for step in self.steps:
+                with tracer.start_as_current_span(step.__class__.__name__) as span:
+                    try:
+                        self.logger.info(f"Executing step: {step}")
+                        span.set_attribute("step.name", step.__class__.__name__)
 
-        for step in self.steps:
-            try:
-                self.logger.info(f"Executing step: {step}")
+                        # Check if step should be executed
+                        if not step.should_process(context):
+                            self.logger.info(f"Skipping step {step} - should_process returned False")
+                            span.add_event("step.skipped")
+                            continue
 
-                # Check if step should be executed
-                if not step.should_process(context):
-                    self.logger.info(f"Skipping step {step} - should_process returned False")
-                    continue
+                        # Execute the step
+                        result = step.process(context)
 
-                # Execute the step
-                result = step.process(context)
+                        if result.success:
+                            context.mark_step_completed(step.__class__.__name__)
+                            self.logger.info(f"Step {step} completed successfully")
+                            span.set_status(trace.StatusCode.OK)
+                        else:
+                            error_msg = f"Step {step} failed: {result.error}"
+                            context.add_error(error_msg, step.__class__.__name__)
+                            self.logger.error(error_msg)
+                            span.set_status(trace.StatusCode.ERROR, description=error_msg)
+                            span.record_exception(PipelineExecutionError(error_msg))
 
-                if result.success:
-                    context.mark_step_completed(step.__class__.__name__)
-                    self.logger.info(f"Step {step} completed successfully")
-                else:
-                    error_msg = f"Step {step} failed: {result.error}"
-                    context.add_error(error_msg, step.__class__.__name__)
-                    self.logger.error(error_msg)
 
-                    # For critical steps, we might want to stop execution
-                    if self._is_critical_step(step):
-                        raise PipelineExecutionError(error_msg)
+                            # For critical steps, we might want to stop execution
+                            if self._is_critical_step(step):
+                                raise PipelineExecutionError(error_msg)
 
-            except Exception as e:
-                error_msg = f"Unexpected error in step {step}: {str(e)}"
-                context.add_error(error_msg, step.__class__.__name__)
-                self.logger.exception(error_msg)
+                    except Exception as e:
+                        error_msg = f"Unexpected error in step {step}: {str(e)}"
+                        context.add_error(error_msg, step.__class__.__name__)
+                        self.logger.exception(error_msg)
+                        span.set_status(trace.StatusCode.ERROR, description=error_msg)
+                        span.record_exception(e)
 
-                # For critical steps, stop execution
-                if self._is_critical_step(step):
-                    raise PipelineExecutionError(error_msg) from e
+                        # For critical steps, stop execution
+                        if self._is_critical_step(step):
+                            raise PipelineExecutionError(error_msg) from e
 
-        self.logger.info(f"Pipeline execution completed. Completed steps: {context.completed_steps}")
-        return context
+            self.logger.info(f"Pipeline execution completed. Completed steps: {context.completed_steps}")
+            parent_span.set_attribute("pipeline.completed_steps", len(context.completed_steps))
+            return context
 
     def _is_critical_step(self, step: ProcessingStep) -> bool:
         """
