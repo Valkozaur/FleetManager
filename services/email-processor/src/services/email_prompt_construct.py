@@ -1,4 +1,4 @@
-from models.email import Email, Attachment
+from shared.models.email import Email, Attachment
 from google.genai import types
 
 def construct_prompt_parts(email: Email) -> list[types.Part]:

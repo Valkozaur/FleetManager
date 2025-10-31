@@ -9,6 +9,11 @@ class LogisticsDataExtract(BaseModel):
         - You will be provided with email content including subject, body, and possibly attachments.
         - You must base your extraction on the whole information provided (including attachments if any).
     """
+    email_id: str = Field(..., description="The unique identifier of the email from which the logistics data was extracted.")
+    email_subject: str = Field(..., description="The subject of the email from which the logistics data was extracted.")
+    email_sender: str = Field(..., description="The sender of the email.")
+    email_date: str = Field(..., description="The date the email was received.")
+    polled_at: str = Field(..., description="The timestamp when the email was polled by the system.")
     loading_address: str = Field(..., description="The full address for loading the cargo.")
     unloading_address: str = Field(..., description="The full address for unloading the cargo.")
     loading_date: str = Field(..., description="The date and time for loading the cargo.")

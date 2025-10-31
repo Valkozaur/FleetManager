@@ -8,13 +8,13 @@ import os
 import sys
 import logging
 from dotenv import load_dotenv
-from telemetry import configure_opentelemetry
 
 # Add src directory to Python path for absolute imports
 main_root = os.path.dirname(os.path.abspath(__file__))
 src_root = os.path.join(main_root, 'src')
 sys.path.insert(0, src_root)
 
+from telemetry import configure_opentelemetry
 from services.classifier import MailClassifier, MailClassificationEnum
 from services.logistics_data_extract import LogisticsDataExtractor
 
@@ -101,6 +101,13 @@ def run():
     try:
         # Get service account configuration
         service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+        
+        with open("/app/logs/debug.log", "a") as f:
+            f.write(f"CWD: {os.getcwd()}\n")
+            f.write(f"SA File: {service_account_file}\n")
+            f.write(f"LS /app: {os.listdir('/app')}\n")
+            f.write(f"LS /app/credentials: {os.listdir('/app/credentials')}\n")
+
         if not service_account_file:
             raise ValueError("GOOGLE_SERVICE_ACCOUNT_FILE environment variable is required")
         

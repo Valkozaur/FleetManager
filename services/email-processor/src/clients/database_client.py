@@ -4,13 +4,14 @@ Handles database connections and order persistence
 """
 
 import logging
+from datetime import datetime
 from typing import Optional
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from models.orm import Base, Order
-from models.logistics import LogisticsDataExtract
+from shared.models.orm import Base, Order
+from shared.models.logistics import LogisticsDataExtract
 
 
 class DatabaseClient:
@@ -117,16 +118,26 @@ class DatabaseClient:
                 return existing_order.id
 
             # Create Order ORM model from Pydantic model
+            try:
+                email_date_dt = logistics_data.email_date if isinstance(logistics_data.email_date, datetime) else (datetime.fromisoformat(logistics_data.email_date) if logistics_data.email_date else None)
+                polled_at_dt = datetime.fromisoformat(logistics_data.polled_at) if logistics_data.polled_at else None
+                loading_date_dt = datetime.strptime(logistics_data.loading_date, "%d.%m.%Y") if logistics_data.loading_date else None
+                unloading_date_dt = datetime.strptime(logistics_data.unloading_date, "%d.%m.%Y") if logistics_data.unloading_date else None
+            except ValueError as ve:
+                self.logger.error(f"Date parsing error for email_id {logistics_data.email_id}: {ve}")
+                print(f"ERROR: Date parsing error for email_id {logistics_data.email_id}: {ve}") # Debug print
+                return None
+
             order = Order(
                 email_id=logistics_data.email_id,
                 email_subject=logistics_data.email_subject,
                 email_sender=logistics_data.email_sender,
-                email_date=logistics_data.email_date,
-                polled_at=logistics_data.polled_at,
+                email_date=email_date_dt,
+                polled_at=polled_at_dt,
                 loading_address=logistics_data.loading_address,
                 unloading_address=logistics_data.unloading_address,
-                loading_date=logistics_data.loading_date,
-                unloading_date=logistics_data.unloading_date,
+                loading_date=loading_date_dt,
+                unloading_date=unloading_date_dt,
                 loading_coordinates=logistics_data.loading_coordinates,
                 unloading_coordinates=logistics_data.unloading_coordinates,
                 cargo_description=logistics_data.cargo_description,
@@ -147,19 +158,22 @@ class DatabaseClient:
         except IntegrityError as e:
             if session:
                 session.rollback()
-            self.logger.error(f"Integrity error saving order: {e}")
+            self.logger.error(f"Integrity error saving order (email_id: {logistics_data.email_id}): {e}")
+            print(f"ERROR: Integrity error saving order (email_id: {logistics_data.email_id}): {e}") # Debug print
             return None
 
         except SQLAlchemyError as e:
             if session:
                 session.rollback()
-            self.logger.error(f"Database error saving order: {e}")
+            self.logger.error(f"Database error saving order (email_id: {logistics_data.email_id}): {e}")
+            print(f"ERROR: Database error saving order (email_id: {logistics_data.email_id}): {e}") # Debug print
             return None
 
         except Exception as e:
             if session:
                 session.rollback()
-            self.logger.error(f"Unexpected error saving order: {e}")
+            self.logger.error(f"Unexpected error saving order (email_id: {logistics_data.email_id}): {e}")
+            print(f"ERROR: Unexpected error saving order (email_id: {logistics_data.email_id}): {e}") # Debug print
             return None
 
         finally:
@@ -175,7 +189,10 @@ class DatabaseClient:
         """
         try:
             with self.engine.connect() as connection:
-                connection.execute("SELECT 1")
+                from sqlalchemy import text
+                query = text("SELECT 1")
+                self.logger.info(f"Executing test query: {query} (type: {type(query)})")
+                connection.execute(query)
                 self.logger.info("Database connection test successful")
                 return True
         except Exception as e:

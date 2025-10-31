@@ -29,9 +29,13 @@ services:
   # Email Processing Service
   email-processor:
     build:
-      context: ./services/email-processor
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/email-processor/Dockerfile
     container_name: email-poller
+    command: >
+      bash -c "
+          python main.py --email-id 19a2a3402652042f;
+      "
     restart: unless-stopped
     env_file:
       - .env
@@ -42,7 +46,7 @@ services:
       - email_poller_data:/app/data
       - email_poller_logs:/app/logs
       # Mount credentials (you'll need to provide these)
-      - ./credentials:/app/credentials:ro
+      - ./.credentials:/app/credentials:ro
     mem_limit: 512m
     mem_reservation: 256m
     cpus: 1.0

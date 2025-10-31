@@ -20,7 +20,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy requirements and install dependencies
-COPY requirements.txt .
+COPY services/email-processor/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Runtime - Minimal production image
@@ -50,10 +50,11 @@ COPY --from=builder /opt/venv /opt/venv
 # it will be included by the previous COPY; if it's not present (e.g. when
 # building with the service folder as the context) create an empty example
 # file so the subsequent steps don't fail.
-COPY --chown=appuser:appuser . .
+COPY --chown=appuser:appuser services/email-processor/ /app/
+COPY --chown=appuser:appuser shared/ /app/shared/
 
 # Replace general README with Docker-specific README
-COPY --chown=appuser:appuser README.Docker.md /app/README.md
+COPY --chown=appuser:appuser services/email-processor/README.Docker.md /app/README.md
 
 # Ensure an example env file exists inside the image. This avoids failing the
 # build when the source `.env.example` is outside the build context.
