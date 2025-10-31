@@ -24,7 +24,7 @@ services:
   database-migration:
     build:
       context: .
-      dockerfile: ./database/Dockerfile
+      dockerfile: ./services/database-migration/Dockerfile
     container_name: database-migration
     command: upgrade head
     env_file:
