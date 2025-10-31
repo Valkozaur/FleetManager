@@ -23,7 +23,7 @@ services:
   # Database Migration Service
   database-migration:
     build:
-      context: .
+      context: ./services/database-migration
       dockerfile: ./services/database-migration/Dockerfile
     container_name: database-migration
     command: upgrade head
