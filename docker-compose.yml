@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   db:
@@ -22,11 +20,28 @@ services:
     networks:
       - fleetmanager-network
 
+  # Database Migration Service
+  database-migration:
+    build:
+      context: .
+      dockerfile: ./database/Dockerfile
+    container_name: database-migration
+    command: upgrade head
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fleetmanager}:${POSTGRES_PASSWORD:-fleetmanager_dev}@db:5432/${POSTGRES_DB:-fleetmanager}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - fleetmanager-network
+
   # Email Processing Service
   email-processor:
     build:
-      context: ./services/email-processor
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/email-processor/Dockerfile
     container_name: email-poller
     restart: unless-stopped
     env_file:
@@ -36,7 +51,7 @@ services:
       - email_poller_data:/app/data
       - email_poller_logs:/app/logs
       # Mount credentials (you'll need to provide these)
-      - ./credentials:/app/credentials:ro
+      - ./.credentials:/app/credentials:ro
     mem_limit: 512m
     mem_reservation: 256m
     cpus: 1.0

@@ -230,9 +230,6 @@ id_rsa*
 id_ed25519*
 !*.pub
 
-# Docker
-.dockerignore
-
 # Local development
 .DS_Store
 *.swp

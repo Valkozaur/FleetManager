@@ -5,11 +5,11 @@ Handles database connections and order persistence
 
 import logging
 from typing import Optional
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from models.orm import Base, Order
+from database.models.orm import Base, Order
 from models.logistics import LogisticsDataExtract
 
 
@@ -175,7 +175,7 @@ class DatabaseClient:
         """
         try:
             with self.engine.connect() as connection:
-                connection.execute("SELECT 1")
+                connection.execute(text("SELECT 1"))
                 self.logger.info("Database connection test successful")
                 return True
         except Exception as e:
