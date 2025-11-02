@@ -1,7 +1,7 @@
 from google import genai
 from google.genai import types
-from models.logistics import LogisticsDataExtract
-from models.email import Email, Attachment
+from shared.models.logistics import LogisticsDataExtract
+from shared.models.email import Email, Attachment
 from services.email_prompt_construct import construct_prompt_parts
 import logging
 
@@ -39,7 +39,12 @@ class LogisticsDataExtractor:
                 )
             )
 
-            return LogisticsDataExtract.model_validate_json(response.text)
+            logistics_data = LogisticsDataExtract.model_validate_json(response.text)
+            logistics_data.email_id = email.id
+            logistics_data.email_subject = email.subject
+            logistics_data.email_sender = email.sender
+            logistics_data.email_date = email.received_at
+            return logistics_data
         except Exception as e:
             logger.error(f"Logistics data extraction failed: {e}")
             return None

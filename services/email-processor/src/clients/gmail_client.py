@@ -8,7 +8,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from models.email import Email, Attachment
+from shared.models.email import Email, Attachment
 
 logger = logging.getLogger(__name__)
 
