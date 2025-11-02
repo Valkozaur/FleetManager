@@ -6,12 +6,12 @@ Handles database connections and order persistence
 import logging
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from shared.models.orm import Base, Order
-from shared.models.logistics import LogisticsDataExtract
+from models.orm import Base, Order
+from models.logistics import LogisticsDataExtract
 
 
 class DatabaseClient:
@@ -189,10 +189,7 @@ class DatabaseClient:
         """
         try:
             with self.engine.connect() as connection:
-                from sqlalchemy import text
-                query = text("SELECT 1")
-                self.logger.info(f"Executing test query: {query} (type: {type(query)})")
-                connection.execute(query)
+                connection.execute("SELECT 1")
                 self.logger.info("Database connection test successful")
                 return True
         except Exception as e:

@@ -1,5 +1,5 @@
 """
-SQLAlchemy ORM models scoped to the email processor service.
+SQLAlchemy ORM models for the FleetManager application.
 """
 
 from datetime import datetime

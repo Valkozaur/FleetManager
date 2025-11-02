@@ -1,5 +1,0 @@
-# Cron job for email-processor service
-# Runs every 5 minutes to poll for new emails
-# Log output is directed to /var/log/email-poller/email-processor.log
-
-*/5 * * * * cd /opt/fleetmanager && docker-compose -f infrastructure/docker/docker-compose.prod.yml run --rm email-processor >> /var/log/email-poller/email-processor.log 2>&1

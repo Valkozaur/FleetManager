@@ -1,0 +1,74 @@
+# Ignore sensitive files
+.env
+.env.local
+.envrc
+credentials.json
+token.json
+token_sheets.json
+auth_code.txt
+imported_token.json
+exported_token.json
+
+# Ignore data and logs
+data/
+logs/
+*.log
+
+# Ignore git
+.git/
+.gitignore
+.gitattributes
+
+# Ignore CI/CD
+.github/
+
+# Ignore documentation
+*.md
+CLAUDE.md
+DEPLOYMENT.md
+README.md
+test_mode_examples.md
+
+# Ignore Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Ignore virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Ignore IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Ignore Docker files
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Ignore scripts (not needed in container)
+scripts/
+
+# Ignore test files
+tests/
+test_*.py
+*_test.py
+
+# Ignore development tools
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+
+# Keep only what's needed: src/, requirements.txt, .env.example

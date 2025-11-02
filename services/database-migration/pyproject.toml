@@ -1,0 +1,12 @@
+[project]
+name = "database-models"
+version = "0.1.0"
+dependencies = [
+    "sqlalchemy",
+    "psycopg2-binary",
+    "alembic",
+]
+
+[tool.setuptools.packages.find]
+include = ["models*", "migrations*"]
+
