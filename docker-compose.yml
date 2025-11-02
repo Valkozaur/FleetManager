@@ -24,7 +24,7 @@ services:
   database-migration:
     build:
       context: ./services/database-migration
-      dockerfile: ./services/database-migration/Dockerfile
+      dockerfile: Dockerfile
     container_name: database-migration
     command: upgrade head
     env_file:
@@ -42,6 +42,9 @@ services:
     build:
       context: .
       dockerfile: ./services/email-processor/Dockerfile
+    depends_on:
+      database-migration:
+        condition: service_completed_successfully
     container_name: email-poller
     restart: unless-stopped
     env_file:

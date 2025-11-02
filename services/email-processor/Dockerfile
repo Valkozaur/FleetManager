@@ -1,51 +1,42 @@
 # syntax=docker/dockerfile:1.4
 
-# Stage 1: Builder
-FROM python:3.13.7-slim AS builder
+# Use the official uv image as a builder
+FROM ghcr.io/astral-sh/uv:0.7.8-python3.13-bookworm as builder
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:0.7.8 /uv /uvx /bin/
+WORKDIR /app
 
+# Copy project files for the email-processor service
+COPY services/email-processor/pyproject.toml ./pyproject.toml
+COPY services/email-processor/uv.lock ./uv.lock
 
-# Stage 2: Runtime
-FROM python:3.13.7-slim AS runtime
+# Build a virtual environment
+RUN uv venv
 
-# Install uv
-COPY --from=builder /bin/uv /bin/uv
-COPY --from=builder /bin/uvx /bin/uvx
+# Install dependencies into the virtual environment
+RUN . .venv/bin/activate && uv pip install -r uv.lock
+
+# --- #
+
+# Use a slim Python image for the runtime
+FROM python:3.13-slim as runtime
+
+WORKDIR /app
 
 # Create a non-root user
 RUN groupadd -r appuser --gid=1000 && \
     useradd -r -g appuser --uid=1000 --home-dir=/app --shell=/sbin/nologin appuser
 
-WORKDIR /app
-
-# Create a virtual environment in the project root
-RUN python -m venv .venv
-ENV PATH="/app/.venv/bin:$PATH"
-ENV UV_LINK_MODE=copy
-
-# Copy project definition
-COPY pyproject.toml uv.lock ./
-
-# Install dependencies with cache mount
-# This requires BuildKit to be enabled.
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-cache-dir --all-extras --no-install-project
+# Copy the virtual environment from the builder
+COPY --from=builder --chown=appuser:appuser /app/.venv ./.venv
 
 # Copy application code
 COPY --chown=appuser:appuser services/email-processor/src ./src
 COPY --chown=appuser:appuser services/email-processor/main.py .
-COPY --chown=appuser:appuser database ./database
+COPY --chown=appuser:appuser services/database-migration ./database
 
-# Install the project itself
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-cache-dir --all-extras
-
-# Set environment variables
+# Activate the virtual environment
+ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app
-
-RUN mkdir /app/data && chown appuser:appuser /app/data
 
 USER appuser
 

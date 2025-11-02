@@ -2,7 +2,7 @@
 FROM python:3.13-slim
 
 # Set the working directory
-WORKDIR /app/database
+WORKDIR /app
 
 # Install uv for package management
 COPY --from=ghcr.io/astral-sh/uv:0.7.8 /uv /usr/local/bin/
@@ -11,7 +11,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.7.8 /uv /usr/local/bin/
 COPY . /app
 
 # Install dependencies
-RUN uv pip install --no-cache-dir --system /app/database
+RUN uv pip install --no-cache-dir --system /app
 
 # Set the python path
 ENV PYTHONPATH=/app
