@@ -1,4 +1,8 @@
-services:
+networks:
+  fleetmanager-network:
+    driver: bridge
+
+services:    
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
@@ -23,10 +27,10 @@ services:
   # Database Migration Service
   database-migration:
     build:
-      context: ./services/database-migration
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/database-migration/Dockerfile
     container_name: database-migration
-    command: upgrade head
+    restart: "no"
     env_file:
       - .env
     environment:
@@ -46,10 +50,6 @@ services:
       database-migration:
         condition: service_completed_successfully
     container_name: email-poller
-    command: >
-      bash -c "
-          python main.py --email-id 19a2a3402652042f;
-      "
     restart: unless-stopped
     env_file:
       - .env
@@ -73,8 +73,6 @@ services:
       start_period: 10s
     networks:
       - fleetmanager-network
-    depends_on:
-      - otel-collector
 
   # OpenTelemetry Collector
   otel-collector:

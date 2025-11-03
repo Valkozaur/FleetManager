@@ -1,10 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "email-processor"
 version = "0.1.0"
-description = "A service to process logistics orders from emails."
-readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "database-models",
     "google-api-python-client==2.185.0",
     "google-auth==2.41.1",
     "google-auth-oauthlib==1.2.2",
@@ -15,14 +18,22 @@ dependencies = [
     "httpx==0.28.1",
     "structlog==25.5.0",
     "pydantic==2.12.3",
-    "sqlalchemy==2.0.44",
-    "psycopg2-binary==2.9.11",
+    "opentelemetry-api==1.25.0",
+    "opentelemetry-sdk==1.25.0",
+    "opentelemetry-exporter-otlp-proto-grpc==1.25.0",
+    "opentelemetry-instrumentation-requests==0.46b0",
+    "opentelemetry-instrumentation-logging==0.46b0",
 ]
 
-[tool.pytest.ini_options]
-pythonpath = ["src"]
-
-[tool.pdm.dev-dependencies]
+[project.optional-dependencies]
 dev = [
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
     "depcheck",
 ]
+
+[tool.uv.sources]
+database-models = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["clients", "models", "pipeline", "services"]

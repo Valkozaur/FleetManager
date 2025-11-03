@@ -1,6 +1,6 @@
 from google import genai
 from google.genai import types
-from shared.models.email import Email, Attachment 
+from models.email import Email, Attachment 
 from enum import Enum
 from services.email_prompt_construct import construct_prompt_parts
 import logging

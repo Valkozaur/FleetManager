@@ -17,13 +17,12 @@ A microservice-based logistics fleet management system that processes emails to 
 
 ### Service Documentation
 - **[Email Processor](./services/email-processor/README.md)** - Email processing service details
-- **[Web UI](./services/ui/README.md)** - Future web interface
-- **[API Gateway](./services/api-gateway/README.md)** - Future API gateway
+- **[Database Migration](./services/database-migration/)** - Database schema management
+- **[Database Models](./services/database-models/)** - Shared ORM models
 
 ### Shared Components
-- **[Shared Models](./shared/models/)** - Common data models
-- **[Shared Utilities](./shared/utils/)** - Common utilities
-- **[Shared Configuration](./shared/config/)** - Common configuration
+- **[Database Models](./services/database-models/)** - Shared ORM models using SQLAlchemy
+- **[Migrations](./services/database-models/migrations/)** - Alembic database migrations
 
 ## 🏗️ Architecture
 
@@ -32,24 +31,28 @@ A microservice-based logistics fleet management system that processes emails to 
 ```
 FleetManager/
 ├── services/                       # Microservices
-│   ├── email-processor/           # Gmail processing service ✅
-│   ├── ui/                        # Future web interface 🚧
-│   └── api-gateway/               # Future API gateway 🚧
-├── shared/                        # Shared components
-│   ├── models/                    # Common data models
-│   ├── utils/                     # Shared utilities
-│   └── config/                    # Shared configuration
-├── infrastructure/                # Infrastructure setup
-│   └── nginx/                     # Reverse proxy config
-└── tests/                         # Integration & e2e tests
+│   ├── database-models/           # Shared ORM models 📦
+│   ├── database-migration/        # Schema migrations ✅
+│   └── email-processor/           # Gmail processing service ✅
+├── tests/                         # Integration & e2e tests
+└── credentials/                   # Service account credentials
 ```
 
 ### Current Services
 
+**Database Models** (📦 Shared)
+- SQLAlchemy ORM models
+- Shared across all services via uv workspace
+
+**Database Migration** (✅ Active)
+- Alembic-based schema migrations
+- Idempotent migration runner
+- Runs on every deployment
+
 **Email Processor** (✅ Active)
 - Gmail polling and email classification
 - AI-powered logistics data extraction
-- Geocoding and Google Sheets integration
+- PostgreSQL storage with geocoding
 
 ### Future Services
 
@@ -59,46 +62,58 @@ FleetManager/
 - User interface for fleet operations
 
 **API Gateway** (🚧 Planned)
-- Single entry point for all services
+- REST API for fleet operations
 - Authentication and authorization
-- Request routing and load balancing
+- GraphQL interface
 
 ## 🔧 Technology Stack
 
 - **Language**: Python 3.13
-- **Container**: Docker (multi-stage builds)
+- **Package Manager**: uv (fast Python package manager)
+- **Database**: PostgreSQL 15
+- **ORM**: SQLAlchemy 2.0
+- **Migrations**: Alembic
+- **Container**: Docker (multi-stage builds with uv)
 - **Orchestration**: Docker Compose
 - **CI/CD**: GitHub Actions
 - **Registry**: GitHub Container Registry
-- **APIs**: Gmail, Google Sheets, Google Maps, Google Gemini
+- **APIs**: Gmail, Google Gemini AI, Google Maps, Google Sheets
 
 ## 📦 Project Structure
 
 ```
 FleetManager/
-├── services/                    # Microservices
-│   ├── email-processor/        # ✅ Email processing service
+├── services/                    # UV workspace services
+│   ├── database-models/        # 📦 Shared ORM models
+│   │   ├── database_models/
+│   │   │   ├── __init__.py     # Exports Base, Order
+│   │   │   └── orm.py          # SQLAlchemy models
+│   │   ├── migrations/         # Alembic migrations
+│   │   └── pyproject.toml
+│   ├── database-migration/     # ✅ Migration runner
+│   │   ├── main.py             # Migration script
+│   │   ├── alembic.ini
 │   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   ├── src/
-│   │   └── tests/
-│   ├── ui/                     # 🚧 Future web interface
-│   └── api-gateway/            # 🚧 Future API gateway
-├── shared/                     # Shared components
-│   ├── models/                 # Common data models
-│   ├── utils/                  # Shared utilities
-│   └── config/                 # Shared configuration
-├── infrastructure/             # Infrastructure setup
-│   └── nginx/                  # Reverse proxy configuration
-├── tests/                      # Integration tests
+│   │   └── pyproject.toml
+│   └── email-processor/        # ✅ Email processing
+│       ├── main.py
+│       ├── clients/            # External API clients
+│       ├── models/             # Pydantic models
+│       ├── pipeline/           # Processing pipeline
+│       ├── services/           # Business logic
+│       ├── Dockerfile
+│       └── pyproject.toml
+├── tests/                      # Integration & e2e tests
 ├── .github/workflows/          # CI/CD pipeline
-├── docker-compose.yml          # Service orchestration
-└── README.md                   # This file
+├── docker-compose.yml          # Local development
+├── docker-compose.prod.yml     # Production deployment
+├── pyproject.toml              # UV workspace config
+└── uv.lock                     # Dependency lockfile
 ```
 
 ## 🚀 Quick Start
 
-### Running the Email Processor Service
+### Running with Docker Compose
 
 1. **Setup Environment**
    ```bash
@@ -107,41 +122,52 @@ FleetManager/
    cd FleetManager
 
    # Add credentials
-   mkdir -p credentials
-   cp /path/to/credentials.json credentials/
+   mkdir -p .credentials
+   cp /path/to/service-account.json .credentials/
+   
+   # Create .env file
+   cp .env.example .env
+   # Edit .env with your configuration
    ```
 
-2. **Run with Docker Compose**
+2. **Run All Services**
+   ```bash
+   docker-compose up
+   # Services will start in order: db → database-migration → email-processor
+   ```
+
+3. **Run Specific Service**
    ```bash
    docker-compose up email-processor
-   ```
-
-3. **Run Single Service**
-   ```bash
-   cd services/email-processor
-   docker build -t email-processor:local .
-   docker run -v $(pwd)/../../credentials:/app/credentials --env-file .env email-processor:local
    ```
 
 ### Local Development
 
 ```bash
-# Install service dependencies
-cd services/email-processor
-pip install -r requirements.txt
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Run locally
-python src/orders/poller/main.py
+# Sync workspace dependencies
+uv sync
+
+# Run database migrations
+cd services/database-migration
+uv run python main.py
+
+# Run email processor
+cd services/email-processor
+uv run python main.py
 ```
 
 ## 🔄 Email Processing Workflow
 
-1. **Email Polling**: Checks Gmail for new emails
-2. **Classification**: AI determines if email is logistics-related
-3. **Extraction**: Extracts sender, receiver, addresses, contacts
-4. **Geocoding**: Converts addresses to lat/long coordinates
-5. **Storage**: Saves structured data to Google Sheets
-6. **Logging**: Records all operations for monitoring
+1. **Database Migration**: Alembic applies schema changes (idempotent)
+2. **Email Polling**: Checks Gmail for new emails since last check
+3. **Classification**: Gemini AI determines if email contains order data
+4. **Extraction**: Extracts logistics details (addresses, dates, cargo info)
+5. **Geocoding**: Converts addresses to coordinates via Google Maps API
+6. **Storage**: Saves to PostgreSQL database
+7. **Logging**: Records all operations with structured logging
 
 ## 📊 Service Management
 
@@ -151,31 +177,41 @@ docker-compose ps
 
 # View service logs
 docker-compose logs -f email-processor
+docker-compose logs -f database-migration
 
 # Build and run services
 docker-compose up --build
 
 # Stop services
 docker-compose down
+
+# Run migrations manually
+docker-compose run --rm database-migration
+
+# Access database
+docker-compose exec db psql -U fleetmanager -d fleetmanager
 ```
 
 ## 🔮 Roadmap
 
 ### Completed ✅
-- Microservice architecture foundation
-- Email processing service containerization
-- Shared components structure
-- Service orchestration with Docker Compose
+- UV workspace monorepo with shared database-models
+- PostgreSQL database with SQLAlchemy ORM
+- Alembic migrations with automatic deployment
+- Email processing service with AI classification
+- Docker Compose orchestration with health checks
+- CI/CD pipeline with GitHub Actions
 
 ### In Progress 🚧
-- Web UI service development
-- API gateway implementation
-- Service-to-service communication
+- OpenTelemetry observability integration
+- Enhanced error handling and retry logic
+- Service-level metrics and monitoring
 
 ### Future Plans 📋
+- Web UI for order management
+- REST API gateway
 - Real-time order tracking
 - Analytics dashboard
-- Mobile app integration
 - Multi-tenant support
 
 ## 🆘 Support
@@ -195,6 +231,6 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Version**: 3.0 (Microservice Architecture)
-**Last Updated**: October 2025
+**Version**: 4.0 (UV Workspace + PostgreSQL)
+**Last Updated**: November 2025
 **Status**: Production Ready ✅

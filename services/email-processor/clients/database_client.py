@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from models.orm import Base, Order
+from database_models import Base, Order
 from models.logistics import LogisticsDataExtract
 
 

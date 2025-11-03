@@ -20,13 +20,13 @@ services:
       - fleetmanager-network
 
   database-migration:
-    image: ghcr.io/valkozaur/database-migration
+    image: ghcr.io/valkozaur/database-migration:latest
     container_name: database-migration
-    command: upgrade head
+    restart: "no"
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}@db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
       db:
         condition: service_healthy
@@ -34,10 +34,13 @@ services:
       - fleetmanager-network
 
   email-processor:
-    image: ghcr.io/valkozaur/email-poller
-    container_name: email-poller
+    image: ghcr.io/valkozaur/email-processor:latest
+    container_name: email-processor
+    restart: unless-stopped
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     volumes:
       - email_poller_data:/app/data
       - email_poller_logs:/app/logs

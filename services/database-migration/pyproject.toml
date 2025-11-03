@@ -1,12 +1,12 @@
 [project]
-name = "database-models"
+name = "database-migration"
 version = "0.1.0"
+description = "Database migration service for FleetManager"
+requires-python = ">=3.13"
 dependencies = [
-    "sqlalchemy",
-    "psycopg2-binary",
-    "alembic",
+    "database-models",
+    "alembic>=1.13.0",
 ]
 
-[tool.setuptools.packages.find]
-include = ["models*", "migrations*"]
-
+[tool.uv.sources]
+database-models = { workspace = true }

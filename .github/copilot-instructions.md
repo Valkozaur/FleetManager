@@ -1,14 +1,18 @@
 # FleetManager Copilot Instructions
 
 ## Project Overview
-FleetManager is a microservice-based logistics system that automates email processing for truck fleet management. Only the email-processor service is production-ready; ui and api-gateway are placeholders.
+FleetManager is a UV workspace-based logistics system that automates email processing for truck fleet management. The system uses shared database models across services with automated migrations.
 
 ## Architecture Essentials
 
 ### Service Structure
-- **Monorepo**: Services under `services/`; only `services/email-processor` is active
-- **Entry Point**: `services/email-processor/src/orders/poller/main.py` wires all clients and pipeline steps
-- **Shared Code**: Despite `shared/` folder at root, email-processor has its own copies under `services/email-processor/src/orders/poller/`—always edit the service-local versions
+- **UV Workspace Monorepo**: Services under `services/` with shared dependencies via `database-models`
+- **Active Services**: 
+  - `services/email-processor/` - Email processing and AI extraction
+  - `services/database-migration/` - Alembic migration runner
+  - `services/database-models/` - Shared SQLAlchemy ORM models
+- **Entry Point**: `services/email-processor/main.py` wires all clients and pipeline steps
+- **Database**: PostgreSQL with SQLAlchemy ORM
 
 ### Pipeline Architecture
 The processing flow is a strictly ordered pipeline defined by `ProcessingOrder` enum:
@@ -16,7 +20,8 @@ The processing flow is a strictly ordered pipeline defined by `ProcessingOrder` 
 1. **CLASSIFICATION** (1) - Critical step; pipeline aborts if it fails
 2. **LOGISTICS_EXTRACTION** (2) - Runs only for Order emails
 3. **GEOCODING** (3) - Optional; fills missing coordinates
-4. **DATABASE_SAVE** (4) - Optional; writes to Google Sheets
+4. **POSTGRES_SAVE** (4) - Saves to PostgreSQL database
+5. **GOOGLE_SHEETS_SAVE** (5) - Optional; writes to Google Sheets (legacy)
 
 **Key Pattern**: Steps communicate through `ProcessingContext`, which passes `email`, `classification`, `logistics_data`, and `custom_data`. Steps mutate the context directly—never return raw dicts.
 
@@ -37,7 +42,13 @@ The processing flow is a strictly ordered pipeline defined by `ProcessingOrder` 
 - Calls `GoogleMapsClient.geocode_address()` for each missing coordinate pair
 - Gracefully degrades on API failures (logs warning, continues)
 
-**DatabaseSaveStep** (`steps/database_save_step.py`)
+**PostgresSaveStep** (`steps/postgres_save_step.py`)
+- Uses `DatabaseClient` to persist orders to PostgreSQL
+- Creates `Order` ORM instances from `LogisticsDataExtract` Pydantic models
+- Checks for duplicate `email_id` before inserting
+- Handles date parsing and type conversions
+
+**GoogleSheetsSaveStep** (`steps/google_sheets_save_step.py`) - Legacy
 - Creates headers once via `create_headers_if_not_exist()` on first run
 - Mutates `context.logistics_data` to inject `email_id`, `email_subject`, `email_sender`, `email_date` if missing
 - Skipped entirely when `GOOGLE_SHEETS_SPREADSHEET_ID` env var not set
@@ -57,38 +68,65 @@ The processing flow is a strictly ordered pipeline defined by `ProcessingOrder` 
 - Prompt construction in `services/email_prompt_construct.py` handles attachments via `types.Part` with inline data
 - Both clients MUST be closed via `.close()` in `main.run()` finally block
 
-### Google Maps API (Optional)
-- Only initialized if `GOOGLE_MAPS_API_KEY` is set
-- Used exclusively by `GeocodingStep` for address→coordinates conversion
-- Returns tuple `(lat, lng)` or None on failure
-
-### Google Sheets API (Optional)
+### Google Sheets API (Optional - Legacy)
 - Uses **service account authentication** (same key as Gmail)
 - Requires `GOOGLE_SHEETS_SPREADSHEET_ID` + service account key at `GOOGLE_SERVICE_ACCOUNT_FILE`
 - Headers: `email_id`, `email_subject`, `email_sender`, `email_date`, + 10 logistics fields
 - Graceful degradation: if auth fails or env var missing, step is skipped
 
+### Alembic Migrations
+- Located in `services/database-models/migrations/`
+- Config in `services/database-migration/alembic.ini`
+- Imports models via `from database_models import Base`
+- Run via `database-migration` service on deployment
+- Creates/updates schema idempotently
+
+### PostgreSQL Database
+- Uses **SQLAlchemy 2.0** with declarative ORM models
+- Shared `database-models` package imported as `from database_models import Base, Order`
+- Connection via `DATABASE_URL` environment variable
+- Tables auto-created by Alembic migrations, not `create_all()`
+- `DatabaseClient` handles connection pooling and session management
+
 ## Developer Workflows
 
 ### Local Development
 ```bash
+# Install UV
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Sync workspace dependencies
+uv sync
+
+# Run migrations
+cd services/database-migration
+uv run python main.py
+
+# Run email processor
 cd services/email-processor
-# Loads .env or .env.local automatically
-python src/orders/poller/main.py
+uv run python main.py
 ```
 
 ### Docker Development
 ```bash
-# From repo root
+# From repo root - runs migrations then email-processor
+docker-compose up
+
+# Run specific service
 docker-compose up email-processor
-# Mounts ./credentials as /app/credentials and uses service Dockerfile
+
+# Rebuild after changes
+docker-compose up --build
 ```
 
 ### Testing
 ```bash
+# Run tests with UV
+uv run pytest
+
+# Run tests for specific service
 cd services/email-processor
-pytest
-# Note: root pyproject.toml testpaths=["tests/"] won't find service tests
+uv run pytest
 ```
 
 ### Debugging Mode
@@ -135,17 +173,17 @@ LOG_LEVEL=DEBUG
 - `GEMINI_API_KEY`
 - `GOOGLE_SERVICE_ACCOUNT_FILE` (path to service account JSON key)
 - `GMAIL_DELEGATED_USER_EMAIL` (email to impersonate via domain-wide delegation)
+- `DATABASE_URL` (PostgreSQL connection string)
 
 **Optional**:
 - `GOOGLE_MAPS_API_KEY` (enables geocoding)
-- `GOOGLE_SHEETS_SPREADSHEET_ID` (enables database saving)
+- `GOOGLE_SHEETS_SPREADSHEET_ID` (enables legacy Google Sheets saving)
 - `GOOGLE_SHEETS_RANGE_NAME` (default: "Sheet1!A:Z")
 - `DATA_DIR` (default: "./data")
 - `LOG_LEVEL` (default: "INFO")
 - `TEST_EMAIL_QUERY` (optional; filters emails with Gmail query syntax)
 
 ## Anti-Patterns to Avoid
-- ❌ Don't edit files in root `shared/` folder (duplicates are for future services)
 - ❌ Don't return data dicts from steps; mutate `ProcessingContext` instead
 - ❌ Don't add steps without unique `ProcessingOrder` integer
 - ❌ Don't modify `MailClassificationEnum` values (breaks Gemini response parsing)
@@ -154,11 +192,13 @@ LOG_LEVEL=DEBUG
 
 ## Key Files Reference
 - **Pipeline**: `pipeline/pipeline.py`, `pipeline/processing_context.py`, `pipeline/processing_step.py`
-- **Steps**: `pipeline/steps/{classification,logistics_extraction,geocoding,database_save}_step.py`
+- **Steps**: `pipeline/steps/{classification,logistics_extraction,geocoding,postgres_save,google_sheets_save}_step.py`
 - **Services**: `services/{classifier,logistics_data_extract,email_prompt_construct}.py`
-- **Clients**: `clients/{gmail,gemini,google_maps,google_sheets}_client.py`
+- **Clients**: `clients/{gmail,gemini,google_maps,google_sheets,database}_client.py`
 - **Models**: `models/{email,logistics}.py`
-- **Main**: `main.py` (wires everything together)
+- **Database Models**: `services/database-models/database_models/orm.py`
+- **Migrations**: `services/database-models/migrations/`
+- **Main**: `services/email-processor/main.py` (wires everything together)
 
 
 ### RULES

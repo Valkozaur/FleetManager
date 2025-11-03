@@ -102,12 +102,6 @@ def run():
         # Get service account configuration
         service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
         
-        with open("/app/logs/debug.log", "a") as f:
-            f.write(f"CWD: {os.getcwd()}\n")
-            f.write(f"SA File: {service_account_file}\n")
-            f.write(f"LS /app: {os.listdir('/app')}\n")
-            f.write(f"LS /app/credentials: {os.listdir('/app/credentials')}\n")
-
         if not service_account_file:
             raise ValueError("GOOGLE_SERVICE_ACCOUNT_FILE environment variable is required")
         

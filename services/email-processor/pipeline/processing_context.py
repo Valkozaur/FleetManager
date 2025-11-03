@@ -2,8 +2,8 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from shared.models.email import Email
-from shared.models.logistics import LogisticsDataExtract
+from models.email import Email
+from models.logistics import LogisticsDataExtract
 from services.classifier import MailClassificationEnum
 
 

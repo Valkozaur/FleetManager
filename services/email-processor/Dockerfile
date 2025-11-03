@@ -1,19 +1,24 @@
 # syntax=docker/dockerfile:1.4
 
 # Use the official uv image as a builder
-FROM ghcr.io/astral-sh/uv:0.7.8-python3.13-bookworm as builder
+FROM ghcr.io/astral-sh/uv:0.9.0-python3.13-bookworm as builder
 
 WORKDIR /app
 
-# Copy project files for the email-processor service
-COPY services/email-processor/pyproject.toml ./pyproject.toml
-COPY services/email-processor/uv.lock ./uv.lock
+# Enable bytecode compilation
+ENV UV_COMPILE_BYTECODE=1
 
-# Build a virtual environment
-RUN uv venv
+# Copy from the cache instead of linking since it's a mounted volume
+ENV UV_LINK_MODE=copy
 
-# Install dependencies into the virtual environment
-RUN . .venv/bin/activate && uv pip install -r uv.lock
+# Copy workspace files for dependency resolution
+COPY pyproject.toml uv.lock ./
+COPY services/database-models ./services/database-models/
+COPY services/email-processor ./services/email-processor/
+
+# Install only email-processor package and its dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --package email-processor
 
 # --- #
 
@@ -26,19 +31,24 @@ WORKDIR /app
 RUN groupadd -r appuser --gid=1000 && \
     useradd -r -g appuser --uid=1000 --home-dir=/app --shell=/sbin/nologin appuser
 
-# Copy the virtual environment from the builder
-COPY --from=builder --chown=appuser:appuser /app/.venv ./.venv
+# Create directories with proper ownership
+RUN mkdir -p /app/logs /app/data && \
+    chown -R appuser:appuser /app/logs /app/data
 
-# Copy application code
-COPY --chown=appuser:appuser services/email-processor/src ./src
-COPY --chown=appuser:appuser services/email-processor/main.py .
-COPY --chown=appuser:appuser services/database-migration ./database
+# Copy the virtual environment from the builder
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+
+# Copy services
+COPY --chown=appuser:appuser services/database-models /app/services/database-models
+COPY --chown=appuser:appuser services/email-processor /app/services/email-processor
 
 # Activate the virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app
 
 USER appuser
+
+WORKDIR /app/services/email-processor
 
 # Set the default command
 CMD ["python", "main.py"]
