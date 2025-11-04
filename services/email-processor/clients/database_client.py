@@ -121,8 +121,8 @@ class DatabaseClient:
             try:
                 email_date_dt = logistics_data.email_date if isinstance(logistics_data.email_date, datetime) else (datetime.fromisoformat(logistics_data.email_date) if logistics_data.email_date else None)
                 polled_at_dt = datetime.fromisoformat(logistics_data.polled_at) if logistics_data.polled_at else None
-                loading_date_dt = datetime.strptime(logistics_data.loading_date, "%d.%m.%Y") if logistics_data.loading_date else None
-                unloading_date_dt = datetime.strptime(logistics_data.unloading_date, "%d.%m.%Y") if logistics_data.unloading_date else None
+                loading_date_dt = logistics_data.loading_date if isinstance(logistics_data.loading_date, datetime) else (datetime.fromisoformat(logistics_data.loading_date) if logistics_data.loading_date else None)
+                unloading_date_dt = logistics_data.unloading_date if isinstance(logistics_data.unloading_date, datetime) else (datetime.fromisoformat(logistics_data.unloading_date) if logistics_data.unloading_date else None)
             except ValueError as ve:
                 self.logger.error(f"Date parsing error for email_id {logistics_data.email_id}: {ve}")
                 print(f"ERROR: Date parsing error for email_id {logistics_data.email_id}: {ve}") # Debug print
