@@ -9,10 +9,11 @@ import subprocess
 import logging
 from pathlib import Path
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+from telemetry import init_telemetry
+
+# Initialize OpenTelemetry
+init_telemetry(service_name="database-migration")
+
 logger = logging.getLogger(__name__)
 
 

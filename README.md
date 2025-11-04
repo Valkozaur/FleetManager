@@ -15,6 +15,9 @@ A microservice-based logistics fleet management system that processes emails to 
 
 ## 📚 Documentation
 
+### Deployment & Operations
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Complete production deployment guide for Hetzner with observability
+
 ### Service Documentation
 - **[Email Processor](./services/email-processor/README.md)** - Email processing service details
 - **[Database Migration](./services/database-migration/)** - Database schema management

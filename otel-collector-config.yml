@@ -14,6 +14,8 @@ exporters:
       insecure: true
   prometheus:
     endpoint: "0.0.0.0:8889"
+  logging:
+    loglevel: debug
 
 service:
   pipelines:
@@ -25,3 +27,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging]

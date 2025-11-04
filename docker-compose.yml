@@ -49,7 +49,7 @@ services:
     depends_on:
       database-migration:
         condition: service_completed_successfully
-    container_name: email-poller
+    container_name: email-processor
     restart: unless-stopped
     env_file:
       - .env
@@ -57,8 +57,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     volumes:
       # Persist data and tokens
-      - email_poller_data:/app/data
-      - email_poller_logs:/app/logs
+      - email_processor_data:/app/data
+      - email_processor_logs:/app/logs
       # Mount credentials (you'll need to provide these)
       - ./.credentials:/app/credentials:ro
       - ./.credentials:/app/credentials:ro
@@ -136,9 +136,9 @@ services:
 volumes:
   postgres_data:
     driver: local
-  email_poller_data:
+  email_processor_data:
     driver: local
-  email_poller_logs:
+  email_processor_logs:
     driver: local
   prometheus_data:
     driver: local
