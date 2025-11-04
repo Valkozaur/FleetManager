@@ -1,6 +1,8 @@
-version: '3.8'
+networks:
+  fleetmanager-network:
+    driver: bridge
 
-services:
+services:    
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
@@ -22,21 +24,44 @@ services:
     networks:
       - fleetmanager-network
 
+  # Database Migration Service
+  database-migration:
+    build:
+      context: .
+      dockerfile: ./services/database-migration/Dockerfile
+    container_name: database-migration
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fleetmanager}:${POSTGRES_PASSWORD:-fleetmanager_dev}@db:5432/${POSTGRES_DB:-fleetmanager}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - fleetmanager-network
+
   # Email Processing Service
   email-processor:
     build:
-      context: ./services/email-processor
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./services/email-processor/Dockerfile
+    depends_on:
+      database-migration:
+        condition: service_completed_successfully
     container_name: email-poller
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     volumes:
       # Persist data and tokens
       - email_poller_data:/app/data
       - email_poller_logs:/app/logs
       # Mount credentials (you'll need to provide these)
-      - ./credentials:/app/credentials:ro
+      - ./.credentials:/app/credentials:ro
+      - ./.credentials:/app/credentials:ro
     mem_limit: 512m
     mem_reservation: 256m
     cpus: 1.0
@@ -49,6 +74,65 @@ services:
     networks:
       - fleetmanager-network
 
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.98.0
+    container_name: otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./otel-collector-config.yml:/etc/otel-collector-config.yml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8889:8889"   # Prometheus exporter
+    networks:
+      - fleetmanager-network
+    depends_on:
+      - jaeger
+      - prometheus
+
+  # Jaeger for tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "14268:14268" # Jaeger collector
+    networks:
+      - fleetmanager-network
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - fleetmanager-network
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - fleetmanager-network
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
     driver: local
@@ -56,7 +140,7 @@ volumes:
     driver: local
   email_poller_logs:
     driver: local
-
-networks:
-  fleetmanager-network:
-    driver: bridge
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

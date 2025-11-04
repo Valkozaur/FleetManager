@@ -1,0 +1,14 @@
+[project]
+name = "database-models"
+version = "0.1.0"
+description = "Shared database models for FleetManager services"
+requires-python = ">=3.13"
+dependencies = [
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "psycopg2-binary>=2.9.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

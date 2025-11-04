@@ -14,11 +14,11 @@ ENV UV_LINK_MODE=copy
 # Copy workspace files for dependency resolution
 COPY pyproject.toml uv.lock ./
 COPY services/database-models ./services/database-models/
-COPY services/email-processor ./services/email-processor/
+COPY services/database-migration ./services/database-migration/
 
-# Install only email-processor package and its dependencies
+# Install only database-migration package and its dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --package email-processor
+    uv sync --frozen --no-dev --package database-migration
 
 # --- #
 
@@ -31,16 +31,12 @@ WORKDIR /app
 RUN groupadd -r appuser --gid=1000 && \
     useradd -r -g appuser --uid=1000 --home-dir=/app --shell=/sbin/nologin appuser
 
-# Create directories with proper ownership
-RUN mkdir -p /app/logs /app/data && \
-    chown -R appuser:appuser /app/logs /app/data
-
 # Copy the virtual environment from the builder
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 
 # Copy services
 COPY --chown=appuser:appuser services/database-models /app/services/database-models
-COPY --chown=appuser:appuser services/email-processor /app/services/email-processor
+COPY --chown=appuser:appuser services/database-migration /app/services/database-migration
 
 # Activate the virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
@@ -48,7 +44,7 @@ ENV PYTHONPATH=/app
 
 USER appuser
 
-WORKDIR /app/services/email-processor
+WORKDIR /app/services/database-migration
 
-# Set the default command
+# Run the migration script
 CMD ["python", "main.py"]

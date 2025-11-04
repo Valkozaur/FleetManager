@@ -14,6 +14,7 @@ main_root = os.path.dirname(os.path.abspath(__file__))
 src_root = os.path.join(main_root, 'src')
 sys.path.insert(0, src_root)
 
+from telemetry import configure_opentelemetry
 from services.classifier import MailClassifier, MailClassificationEnum
 from services.logistics_data_extract import LogisticsDataExtractor
 
@@ -77,6 +78,9 @@ def _create_processing_pipeline(classifier: MailClassifier, extractor: Logistics
 
 def run():
     """Run pipeline"""
+    # Configure OpenTelemetry
+    configure_opentelemetry()
+
     # Reconfigure logging based on environment variables
     log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
     logger.setLevel(log_level)
@@ -97,6 +101,7 @@ def run():
     try:
         # Get service account configuration
         service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+        
         if not service_account_file:
             raise ValueError("GOOGLE_SERVICE_ACCOUNT_FILE environment variable is required")
         
