@@ -61,7 +61,6 @@ services:
       - email_processor_logs:/app/logs
       # Mount credentials (you'll need to provide these)
       - ./.credentials:/app/credentials:ro
-      - ./.credentials:/app/credentials:ro
     mem_limit: 512m
     mem_reservation: 256m
     cpus: 1.0

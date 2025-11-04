@@ -126,8 +126,11 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-    networks:
-      - fleetmanager-network
+      - ./certbot/conf:/etc/letsencrypt:ro
+    depends_on:
+      - jaeger
+      - grafana
+      - prometheus
 
 
 
