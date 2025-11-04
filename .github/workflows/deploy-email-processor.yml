@@ -82,5 +82,5 @@ jobs:
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             cd ~/fleetmanager
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
+            docker compose pull
+            docker compose up -d
