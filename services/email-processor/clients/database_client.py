@@ -189,7 +189,7 @@ class DatabaseClient:
         """
         try:
             with self.engine.connect() as connection:
-                connection.execute("SELECT 1")
+                connection.execute(text("SELECT 1"))
                 self.logger.info("Database connection test successful")
                 return True
         except Exception as e:
