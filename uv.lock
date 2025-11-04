@@ -193,6 +193,9 @@ source = { virtual = "services/database-migration" }
 dependencies = [
     { name = "alembic" },
     { name = "database-models" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-sdk" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
 ]
 
 [package.metadata]
