@@ -1,0 +1,4 @@
+services:
+  oauth2-proxy:
+    env_file:
+      - .env
