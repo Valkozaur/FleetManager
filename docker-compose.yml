@@ -158,6 +158,7 @@ services:
 
   oauth2-proxy:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
     container_name: oauth2-proxy
     restart: unless-stopped
     environment:
@@ -180,6 +181,10 @@ services:
       - jaeger
       - grafana
       - prometheus
+    depends_on:
+      - jaeger
+      - grafana
+      - prometheus
 
 volumes:
   postgres_data:
@@ -191,6 +196,12 @@ volumes:
   prometheus_data:
     driver: local
   grafana_data:
+    driver: local
+
+  certbot_conf:
+    driver: local
+
+  certbot_www:
     driver: local
 
   certbot_conf:
