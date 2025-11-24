@@ -17,24 +17,6 @@ The primary service, `email-processor`, is responsible for the following workflo
 
 The project is designed to be extensible, with plans for a future web UI and an API gateway.
 
-## Google Authentication with OAuth2-Proxy
-
-The project uses [OAuth2-Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) to protect the services with Google Authentication. The `oauth2-proxy` service is configured to use Google as the identity provider. When a user tries to access a protected service, they are redirected to Google for authentication. After successful authentication, the user is redirected back to the application.
-
-### Configuration
-
-To enable Google Authentication, you need to create a new project in the [Google Cloud Console](https://console.cloud.google.com/) and create new OAuth 2.0 credentials. You will need to provide the following environment variables in the `.env` file:
-
-- `OAUTH2_PROXY_CLIENT_ID`: The client ID of your OAuth 2.0 credentials.
-- `OAUTH2_PROXY_CLIENT_SECRET`: The client secret of your OAuth 2.0 credentials.
-- `OAUTH2_PROXY_COOKIE_SECRET`: A secret to encrypt the session cookie. You can generate a new secret with the following command:
-
-```bash
-python -c 'import os,base64; print(base64.b64encode(os.urandom(16)).decode("ascii"))'
-```
-
-Create a `.env` file in the root of the project and add the environment variables listed above. You can use the `.env.example` file as a template.
-
 ## Technology Stack
 
 *   **Language**: Python 3.13

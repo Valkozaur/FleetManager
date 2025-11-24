@@ -9,7 +9,7 @@ help:
 	@echo "  make db-reset       - Reset the database"
 
 dev:
-	docker-compose up --build
+	docker-compose -f infrastructure/docker/docker-compose.yml up --build
 
 test:
 	./scripts/run-tests.sh
