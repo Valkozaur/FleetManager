@@ -132,25 +132,28 @@ services:
     depends_on:
       - prometheus
 
-  oauth2-proxy:
-    image: quay.io/oauth2-proxy/oauth2-proxy:v7.4.0
-    container_name: oauth2-proxy
-    restart: unless-stopped
-    ports:
-      - "4180:4180"
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
     volumes:
-      - ./oauth2-proxy.cfg:/etc/oauth2-proxy.cfg
-    environment:
-      OAUTH2_PROXY_CLIENT_ID: ${OAUTH2_PROXY_CLIENT_ID}
-      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET}
-      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET}
-      OAUTH2_PROXY_PROVIDER: "google"
-      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
-      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
-      OAUTH2_PROXY_REDIRECT_URL: "https://auth.valdanktrading.org/oauth2/callback"
-      OAUTH2_PROXY_UPSTREAMS: "http://nginx:80"
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     networks:
       - fleetmanager-network
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - fleetmanager-network
+    depends_on:
+      - certbot
+    command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'
 
 volumes:
   postgres_data:
@@ -162,4 +165,10 @@ volumes:
   prometheus_data:
     driver: local
   grafana_data:
+    driver: local
+
+  certbot_conf:
+    driver: local
+
+  certbot_www:
     driver: local
