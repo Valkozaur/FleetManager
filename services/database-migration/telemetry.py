@@ -24,12 +24,12 @@ def init_telemetry(service_name: str) -> None:
     processor = BatchLogRecordProcessor(exporter)
     logger_provider.add_log_record_processor(processor)
     
-    # Add a handler to the root logger
-    handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
-    logging.getLogger().addHandler(handler)
-    
-    # Set the overall logging level
+    # Set the overall logging level and format for console output
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
+
+    # Add a handler to the root logger
+    handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
+    logging.getLogger().addHandler(handler)
