@@ -125,6 +125,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Rename production docker-compose
+        run: mv docker-compose.prod.yml docker-compose.yml
+
       - name: Copy config files to Hetzner
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -132,7 +135,7 @@ jobs:
           port: ${{ secrets.HETZNER_PORT }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: "docker-compose.prod.yml,nginx/conf.d/fleetmanager.conf"
+          source: "docker-compose.yml,nginx/conf.d/fleetmanager.conf"
           target: "~/fleetmanager"
 
       - name: Deploy to Hetzner
@@ -148,10 +151,10 @@ jobs:
             mkdir -p nginx/conf.d
             
             # Pull latest images
-            docker compose -f docker-compose.prod.yml pull
+            docker compose pull
             
             # Restart services with new config
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose up -d --remove-orphans
             
             # Reload Nginx to apply new config
-            docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+            docker compose exec nginx nginx -s reload
