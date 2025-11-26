@@ -204,11 +204,12 @@ services:
       - OAUTH2_PROXY_COOKIE_SECURE=true
       - OAUTH2_PROXY_REVERSE_PROXY=true
       - OAUTH2_PROXY_UPSTREAMS=static://202
-      - OAUTH2_PROXY_REDIRECT_URL=https://jaeger.valdanktrading.org/oauth2/callback # You might need one proxy per subdomain or use a wildcard cookie domain
-      # For multiple subdomains, it is better to use a wildcard cookie domain:
+      # Use wildcard cookie domain for all subdomains (no hardcoded redirect URL)
       - OAUTH2_PROXY_COOKIE_DOMAIN=.valdanktrading.org
       - OAUTH2_PROXY_WHITELIST_DOMAINS=.valdanktrading.org
-      # Provider config (Google example)
+      - OAUTH2_PROXY_COOKIE_SAMESITE=lax
+      - OAUTH2_PROXY_SET_XAUTHREQUEST=true
+      # Provider config
       - OAUTH2_PROXY_PROVIDER=google
     networks:
       - fleetmanager-network
