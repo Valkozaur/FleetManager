@@ -177,6 +177,7 @@ services:
     depends_on:
       - certbot
       - oauth2-proxy
+      - api
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - certbot_conf:/etc/letsencrypt
