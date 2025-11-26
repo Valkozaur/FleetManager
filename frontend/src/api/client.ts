@@ -11,7 +11,7 @@ export interface Order {
     status: 'Pending' | 'Assigned' | 'In Transit' | 'Completed' | 'Cancelled';
 }
 
-const API_URL = 'http://localhost:8000'; // Adjust if needed
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.valdanktrading.org';
 
 export const apiClient = axios.create({
     baseURL: API_URL,
