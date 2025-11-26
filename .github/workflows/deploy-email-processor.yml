@@ -123,6 +123,18 @@ jobs:
     needs: [build-email-processor, build-database-migration, build-api, build-frontend]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      
+      - name: Copy config files to Hetzner
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          port: ${{ secrets.HETZNER_PORT }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          source: "docker-compose.prod.yml,nginx/conf.d/fleetmanager.conf"
+          target: "~/fleetmanager"
+
       - name: Deploy to Hetzner
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -132,5 +144,14 @@ jobs:
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             cd ~/fleetmanager
-            docker compose pull
-            docker compose up -d
+            # Ensure nginx conf dir exists if it was just created
+            mkdir -p nginx/conf.d
+            
+            # Pull latest images
+            docker compose -f docker-compose.prod.yml pull
+            
+            # Restart services with new config
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            
+            # Reload Nginx to apply new config
+            docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
