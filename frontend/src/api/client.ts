@@ -18,6 +18,7 @@ export const apiClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: true, // Send cookies with cross-origin requests
 });
 
 export const fetchOrders = async (): Promise<Order[]> => {
