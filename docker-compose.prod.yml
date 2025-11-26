@@ -80,6 +80,12 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-fleetmanager}:${POSTGRES_PASSWORD:-fleetmanager_dev}@db:5432/${POSTGRES_DB:-fleetmanager}
     ports:
       - "8000:8000"
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\"" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       database-migration:
         condition: service_completed_successfully
@@ -175,7 +181,8 @@ services:
     depends_on:
       - certbot
       - oauth2-proxy
-      - api
+      - api:
+          condition: service_healthy
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - certbot_conf:/etc/letsencrypt
