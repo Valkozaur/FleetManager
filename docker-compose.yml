@@ -181,10 +181,12 @@ services:
       - fleetmanager-network
     profiles: [ "production" ]
     depends_on:
-      - certbot
-      - oauth2-proxy
-      - api:
-          condition: service_healthy
+      certbot:
+        condition: service_started
+      oauth2-proxy:
+        condition: service_started
+      api:
+        condition: service_healthy
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - certbot_conf:/etc/letsencrypt
