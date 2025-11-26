@@ -2,5 +2,6 @@
 members = [
     "services/database-models",
     "services/email-processor",
-    "services/database-migration"
+    "services/database-migration",
+    "services/api"
 ]

@@ -21,16 +21,16 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # Create Enums
     route_status_enum = postgresql.ENUM('PLANNED', 'ACTIVE', 'COMPLETED', name='route_status_enum')
-    route_status_enum.create(op.get_bind())
+    route_status_enum.create(op.get_bind(), checkfirst=True)
 
     driver_status_enum = postgresql.ENUM('AVAILABLE', 'ON_ROUTE', name='driver_status_enum')
-    driver_status_enum.create(op.get_bind())
+    driver_status_enum.create(op.get_bind(), checkfirst=True)
 
     stop_activity_type_enum = postgresql.ENUM('PICKUP', 'DROP', name='stop_activity_type_enum')
-    stop_activity_type_enum.create(op.get_bind())
+    stop_activity_type_enum.create(op.get_bind(), checkfirst=True)
 
     stop_status_enum = postgresql.ENUM('PENDING', 'ARRIVED', 'COMPLETED', name='stop_status_enum')
-    stop_status_enum.create(op.get_bind())
+    stop_status_enum.create(op.get_bind(), checkfirst=True)
 
     # Create Tables
     op.create_table('trucks',
@@ -46,7 +46,7 @@ def upgrade() -> None:
         sa.Column('id', sa.UUID(), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=False),
         sa.Column('phone', sa.String(length=50), nullable=False),
-        sa.Column('status', sa.Enum('AVAILABLE', 'ON_ROUTE', name='driver_status_enum', create_type=False), nullable=False),
+        sa.Column('status', postgresql.ENUM('AVAILABLE', 'ON_ROUTE', name='driver_status_enum', create_type=False), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
 
@@ -54,7 +54,7 @@ def upgrade() -> None:
         sa.Column('id', sa.UUID(), nullable=False),
         sa.Column('driver_id', sa.UUID(), nullable=False),
         sa.Column('truck_id', sa.UUID(), nullable=False),
-        sa.Column('status', sa.Enum('PLANNED', 'ACTIVE', 'COMPLETED', name='route_status_enum', create_type=False), nullable=False),
+        sa.Column('status', postgresql.ENUM('PLANNED', 'ACTIVE', 'COMPLETED', name='route_status_enum', create_type=False), nullable=False),
         sa.Column('scheduled_start_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['driver_id'], ['drivers.id'], ),
         sa.ForeignKeyConstraint(['truck_id'], ['trucks.id'], ),
@@ -66,8 +66,8 @@ def upgrade() -> None:
         sa.Column('route_id', sa.UUID(), nullable=False),
         sa.Column('order_id', sa.Integer(), nullable=True),
         sa.Column('sequence_number', sa.Integer(), nullable=False),
-        sa.Column('activity_type', sa.Enum('PICKUP', 'DROP', name='stop_activity_type_enum', create_type=False), nullable=False),
-        sa.Column('status', sa.Enum('PENDING', 'ARRIVED', 'COMPLETED', name='stop_status_enum', create_type=False), nullable=False),
+        sa.Column('activity_type', postgresql.ENUM('PICKUP', 'DROP', name='stop_activity_type_enum', create_type=False), nullable=False),
+        sa.Column('status', postgresql.ENUM('PENDING', 'ARRIVED', 'COMPLETED', name='stop_status_enum', create_type=False), nullable=False),
         sa.Column('location', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),

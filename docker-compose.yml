@@ -2,7 +2,7 @@ networks:
   fleetmanager-network:
     driver: bridge
 
-services:    
+services:
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
@@ -17,7 +17,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fleetmanager}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fleetmanager}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +26,9 @@ services:
 
   # Database Migration Service
   database-migration:
-    image: ghcr.io/valkozaur/database-migration:main
+    build:
+      context: .
+      dockerfile: services/database-migration/Dockerfile
     container_name: database-migration
     restart: "no"
     env_file:
@@ -41,7 +43,9 @@ services:
 
   # Email Processing Service
   email-processor:
-    image: ghcr.io/valkozaur/email-processor:main
+    build:
+      context: .
+      dockerfile: services/email-processor/Dockerfile
     depends_on:
       database-migration:
         condition: service_completed_successfully
@@ -61,11 +65,30 @@ services:
     mem_reservation: 256m
     cpus: 1.0
     healthcheck:
-      test: ["CMD-SHELL", "test -f /app/credentials/credentials.json || exit 1"]
+      test: [ "CMD-SHELL", "test -f /app/credentials/credentials.json || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+    networks:
+      - fleetmanager-network
+
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    container_name: fleetmanager-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-fleetmanager}:${POSTGRES_PASSWORD:-fleetmanager_dev}@db:5432/${POSTGRES_DB:-fleetmanager}
+    ports:
+      - "8000:8000"
+    depends_on:
+      database-migration:
+        condition: service_completed_successfully
     networks:
       - fleetmanager-network
 
@@ -74,13 +97,13 @@ services:
     image: otel/opentelemetry-collector-contrib:0.98.0
     container_name: otel-collector
     restart: unless-stopped
-    command: ["--config=/etc/otel-collector-config.yml"]
+    command: [ "--config=/etc/otel-collector-config.yml" ]
     volumes:
       - ./otel-collector-config.yml:/etc/otel-collector-config.yml
     ports:
-      - "4317:4317"   # OTLP gRPC receiver
-      - "4318:4318"   # OTLP HTTP receiver
-      - "8889:8889"   # Prometheus exporter
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "8889:8889" # Prometheus exporter
     networks:
       - fleetmanager-network
     depends_on:
@@ -137,6 +160,7 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     networks:
       - fleetmanager-network
+    profiles: [ "production" ]
 
   nginx:
     image: nginx:1.25-alpine
@@ -147,6 +171,7 @@ services:
       - "443:443"
     networks:
       - fleetmanager-network
+    profiles: [ "production" ]
     depends_on:
       - certbot
       - oauth2-proxy
@@ -157,7 +182,6 @@ services:
     command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'
 
   oauth2-proxy:
-    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
     container_name: oauth2-proxy
     restart: unless-stopped
@@ -177,10 +201,7 @@ services:
       - OAUTH2_PROXY_PROVIDER=google
     networks:
       - fleetmanager-network
-    depends_on:
-      - jaeger
-      - grafana
-      - prometheus
+    profiles: [ "production" ]
     depends_on:
       - jaeger
       - grafana
@@ -196,12 +217,6 @@ volumes:
   prometheus_data:
     driver: local
   grafana_data:
-    driver: local
-
-  certbot_conf:
-    driver: local
-
-  certbot_www:
     driver: local
 
   certbot_conf:
