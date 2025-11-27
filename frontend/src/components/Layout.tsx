@@ -1,17 +1,13 @@
 import { LayoutDashboard, List, Truck } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, Outlet } from "react-router-dom";
 
-interface LayoutProps {
-    children: React.ReactNode;
-}
-
-export function Layout({ children }: LayoutProps) {
+export function Layout() {
     const location = useLocation();
 
     const navItems = [
         { name: "Dashboard", href: "/", icon: LayoutDashboard },
         { name: "Orders", href: "/orders", icon: List },
-        { name: "Trucks", href: "/trucks", icon: Truck },
+        { name: "Fleet", href: "/fleet", icon: Truck },
     ];
 
     return (
@@ -37,8 +33,8 @@ export function Layout({ children }: LayoutProps) {
                                     key={item.name}
                                     to={item.href}
                                     className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                                            ? "bg-gray-100 text-gray-900"
-                                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                        ? "bg-gray-100 text-gray-900"
+                                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                         }`}
                                 >
                                     <item.icon className={`w-5 h-5 ${isActive ? "text-gray-900" : "text-gray-400"}`} />
@@ -53,7 +49,7 @@ export function Layout({ children }: LayoutProps) {
             {/* Main Content */}
             <main className="flex-1 overflow-y-auto">
                 <div className="p-8">
-                    {children}
+                    <Outlet />
                 </div>
             </main>
         </div>

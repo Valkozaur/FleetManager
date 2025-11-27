@@ -65,12 +65,20 @@ class StopStatus(str, enum.Enum):
     ARRIVED = "ARRIVED"
     COMPLETED = "COMPLETED"
 
+class TruckStatus(str, enum.Enum):
+    AVAILABLE = "AVAILABLE"
+    MAINTENANCE = "MAINTENANCE"
+    OUT_OF_SERVICE = "OUT_OF_SERVICE"
+    INACTIVE = "INACTIVE"
+
 class Truck(Base):
     __tablename__ = "trucks"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     plate_number = Column(String(50), unique=True, nullable=False)
+    trailer_plate_number = Column(String(50), nullable=True)
     capacity_weight = Column(Float, nullable=False)
+    status = Column(ENUM(TruckStatus, name="truck_status_enum", create_type=False), default=TruckStatus.AVAILABLE, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
     def __repr__(self) -> str:
