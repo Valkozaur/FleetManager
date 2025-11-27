@@ -1,4 +1,4 @@
-import { LayoutDashboard, List, Truck } from "lucide-react";
+import { LayoutDashboard, List, Truck, Users } from "lucide-react";
 import { Link, useLocation, Outlet } from "react-router-dom";
 
 export function Layout() {
@@ -8,6 +8,7 @@ export function Layout() {
         { name: "Dashboard", href: "/", icon: LayoutDashboard },
         { name: "Orders", href: "/orders", icon: List },
         { name: "Fleet", href: "/fleet", icon: Truck },
+        { name: "Drivers", href: "/drivers", icon: Users },
     ];
 
     return (

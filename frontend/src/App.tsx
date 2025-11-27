@@ -3,6 +3,7 @@ import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailsPage } from './pages/OrderDetailsPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import FleetPage from "./pages/FleetPage"; // Added import for FleetPage
+import DriversPage from "./pages/DriversPage";
 import { Layout } from './components/Layout'; // Added import for Layout
 
 const queryClient = new QueryClient();
@@ -17,6 +18,7 @@ function App() {
             <Route path="orders" element={<OrdersPage />} /> {/* Changed path to relative "orders" */}
             <Route path="orders/:id" element={<OrderDetailsPage />} /> {/* Changed path to relative "orders/:id" */}
             <Route path="fleet" element={<FleetPage />} /> {/* Added FleetPage route */}
+            <Route path="drivers" element={<DriversPage />} />
           </Route>
         </Routes>
       </Router>

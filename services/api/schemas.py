@@ -12,6 +12,7 @@ class RouteStatus(str, Enum):
 class DriverStatus(str, Enum):
     AVAILABLE = "AVAILABLE"
     ON_ROUTE = "ON_ROUTE"
+    OFF_DUTY = "OFF_DUTY"
 
 class StopActivityType(str, Enum):
     PICKUP = "PICKUP"
@@ -86,5 +87,29 @@ class TruckResponse(BaseModel):
     is_active: bool
     current_location: Optional[str] = None # Mocked for now
     assigned_driver: Optional[str] = None # Derived
+
+    model_config = ConfigDict(from_attributes=True)
+
+class DriverCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    phone: str = Field(..., min_length=1, max_length=50)
+    status: DriverStatus = DriverStatus.AVAILABLE
+    truck_id: Optional[UUID] = None
+
+class DriverUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    phone: Optional[str] = Field(None, min_length=1, max_length=50)
+    status: Optional[DriverStatus] = None
+    truck_id: Optional[UUID] = None
+
+class DriverResponse(BaseModel):
+    id: UUID
+    name: str
+    phone: str
+    status: DriverStatus
+    truck_id: Optional[UUID]
+    
+    # Derived fields
+    assigned_truck_plate: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
