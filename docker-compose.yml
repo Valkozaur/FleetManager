@@ -44,15 +44,19 @@ services:
       - fleetmanager-network
 
   # Email Processing Service
+  # NOTE: This service runs as a cron job, not continuously.
+  # To run manually: docker compose --profile cron run --rm email-processor
   email-processor:
     build:
       context: .
       dockerfile: services/email-processor/Dockerfile
+    profiles:
+      - cron
     depends_on:
       database-migration:
         condition: service_completed_successfully
     container_name: email-processor
-    restart: unless-stopped
+    restart: "no"
     env_file:
       - .env
     environment:
