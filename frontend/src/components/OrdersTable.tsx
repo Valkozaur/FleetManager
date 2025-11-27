@@ -11,12 +11,15 @@ import { StatusBadge } from "./StatusBadge";
 import { Eye, Truck, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 interface OrdersTableProps {
     orders: Order[];
 }
 
 export function OrdersTable({ orders }: OrdersTableProps) {
+    const navigate = useNavigate();
+
     return (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
             <Table>
@@ -34,8 +37,12 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                 </TableHeader>
                 <TableBody>
                     {orders.map((order) => (
-                        <TableRow key={order.id} className="hover:bg-gray-50/50">
-                            <TableCell>
+                        <TableRow
+                            key={order.id}
+                            className="hover:bg-gray-50/50 cursor-pointer"
+                            onClick={() => navigate(`/orders/${order.id}`)}
+                        >
+                            <TableCell onClick={(e) => e.stopPropagation()}>
                                 <input type="checkbox" className="rounded border-gray-300" />
                             </TableCell>
                             <TableCell className="font-medium">#{order.id}</TableCell>
@@ -52,13 +59,31 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                             </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-900">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-gray-500 hover:text-gray-900"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/orders/${order.id}`);
+                                        }}
+                                    >
                                         <Eye className="h-4 w-4" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-900">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-gray-500 hover:text-gray-900"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
                                         <Truck className="h-4 w-4" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-900">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-gray-500 hover:text-gray-900"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
                                         <Pencil className="h-4 w-4" />
                                     </Button>
                                 </div>
