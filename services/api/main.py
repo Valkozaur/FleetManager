@@ -1,17 +1,9 @@
 from fastapi import FastAPI
 from .routers import ops, orders
 
-from fastapi.middleware.cors import CORSMiddleware
-
 app = FastAPI(title="FleetManager API")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://dashboard.valdanktrading.org"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS is handled by nginx reverse proxy - no need to duplicate here
 
 app.include_router(ops.router)
 app.include_router(orders.router)
