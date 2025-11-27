@@ -22,6 +22,12 @@ class StopStatus(str, Enum):
     ARRIVED = "ARRIVED"
     COMPLETED = "COMPLETED"
 
+class TruckStatus(str, Enum):
+    AVAILABLE = "AVAILABLE"
+    MAINTENANCE = "MAINTENANCE"
+    OUT_OF_SERVICE = "OUT_OF_SERVICE"
+    INACTIVE = "INACTIVE"
+
 class RouteCreate(BaseModel):
     driver_id: UUID
     truck_id: UUID
@@ -58,3 +64,27 @@ class RouteStatusUpdate(BaseModel):
 
 class StopStatusUpdate(BaseModel):
     status: StopStatus
+
+class TruckCreate(BaseModel):
+    plate_number: str = Field(..., min_length=1, max_length=50)
+    trailer_plate_number: str = Field(..., min_length=1, max_length=50)
+    capacity_weight: float = Field(..., gt=0)
+    status: TruckStatus = TruckStatus.AVAILABLE
+
+class TruckUpdate(BaseModel):
+    plate_number: Optional[str] = Field(None, min_length=1, max_length=50)
+    trailer_plate_number: Optional[str] = Field(None, min_length=1, max_length=50)
+    capacity_weight: Optional[float] = Field(None, gt=0)
+    status: Optional[TruckStatus] = None
+
+class TruckResponse(BaseModel):
+    id: UUID
+    plate_number: str
+    trailer_plate_number: Optional[str]
+    capacity_weight: float
+    status: TruckStatus
+    is_active: bool
+    current_location: Optional[str] = None # Mocked for now
+    assigned_driver: Optional[str] = None # Derived
+
+    model_config = ConfigDict(from_attributes=True)
