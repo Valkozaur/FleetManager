@@ -91,6 +91,7 @@ class Driver(Base):
     name = Column(String(255), nullable=False)
     phone = Column(String(50), nullable=False)
     status = Column(ENUM(DriverStatus, name="driver_status_enum", create_type=False), default=DriverStatus.AVAILABLE, nullable=False)
+    truck_id = Column(UUID(as_uuid=True), ForeignKey("trucks.id"), nullable=True)
 
     def __repr__(self) -> str:
         return f"<Driver(id={self.id}, name={self.name})>"

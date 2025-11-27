@@ -40,6 +40,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./services/database-migration:/app/services/database-migration
+      - ./services/database-models:/app/services/database-models
     networks:
       - fleetmanager-network
 
@@ -98,6 +101,9 @@ services:
     depends_on:
       database-migration:
         condition: service_completed_successfully
+    volumes:
+      - ./services/api:/app/services/api
+      - ./services/database-models:/app/services/database-models
     networks:
       - fleetmanager-network
 

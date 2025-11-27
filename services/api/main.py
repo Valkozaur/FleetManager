@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import ops, orders, trucks
+from .routers import ops, orders, trucks, drivers
 import os
 
 app = FastAPI(title="FleetManager API")
@@ -21,6 +21,7 @@ if os.getenv("ENABLE_CORS", "false").lower() == "true":
 app.include_router(ops.router)
 app.include_router(orders.router)
 app.include_router(trucks.router)
+app.include_router(drivers.router)
 
 @app.get("/health")
 async def health_check():
