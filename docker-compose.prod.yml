@@ -33,9 +33,12 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-fleetmanager}:${POSTGRES_PASSWORD:-fleetmanager_dev}@db:5432/${POSTGRES_DB:-fleetmanager}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       db:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - fleetmanager-network
 
