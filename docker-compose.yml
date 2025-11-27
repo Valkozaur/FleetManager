@@ -86,6 +86,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-fleetmanager}:${POSTGRES_PASSWORD:-fleetmanager_dev}@db:5432/${POSTGRES_DB:-fleetmanager}
+      ENABLE_CORS: "true"
     ports:
       - "8000:8000"
     healthcheck:
