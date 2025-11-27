@@ -25,3 +25,8 @@ export const fetchOrders = async (): Promise<Order[]> => {
     const response = await apiClient.get<Order[]>('/orders/');
     return response.data;
 };
+
+export const fetchOrder = async (id: number): Promise<Order> => {
+    const response = await apiClient.get<Order>(`/orders/${id}`);
+    return response.data;
+};

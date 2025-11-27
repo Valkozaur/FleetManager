@@ -99,3 +99,68 @@ async def get_orders(db: AsyncSession = Depends(get_db)):
         ))
         
     return orders_resp
+
+@router.get("/orders/{order_id}", response_model=OrderResponse)
+async def get_order_details(order_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Fetch a single order by ID with its derived status.
+    """
+    stmt = (
+        select(Order, Route.status, RouteStop.status)
+        .outerjoin(RouteStop, Order.id == RouteStop.order_id)
+        .outerjoin(Route, RouteStop.route_id == Route.id)
+        .where(Order.id == order_id)
+    )
+    
+    stmt = (
+        select(Order, Route.status, RouteStop.status)
+        .outerjoin(RouteStop, Order.id == RouteStop.order_id)
+        .outerjoin(Route, RouteStop.route_id == Route.id)
+        .where(Order.id == order_id)
+    )
+    
+    result = await db.execute(stmt)
+    # There might be multiple rows if an order is associated with multiple stops (e.g. pickup and drop)
+    # We need to aggregate them to determine the overall status.
+    rows = result.all()
+    
+    if not rows:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    # Logic to determine status from potentially multiple rows (stops)
+    # Similar to list view, but we have all rows for this order.
+    
+    order = rows[0][0] # Order object is same for all rows
+    
+    status = "Pending"
+    
+    # Check if any route is active or completed
+    # If multiple routes (unlikely for MVP), prioritize active/completed.
+    
+    for row in rows:
+        _, route_status, stop_status = row
+        
+        if route_status:
+            if route_status == RouteStatus.PLANNED:
+                if status == "Pending": # Only upgrade from Pending
+                    status = "Assigned"
+            elif route_status == RouteStatus.ACTIVE:
+                if status in ["Pending", "Assigned"]:
+                    status = "In Transit"
+            elif route_status == RouteStatus.COMPLETED:
+                 # If route is completed, order is likely completed, unless we want to be specific about drop off.
+                 status = "Completed"
+            
+            if stop_status == StopStatus.COMPLETED:
+                 status = "Completed"
+
+    return OrderResponse(
+        id=order.id,
+        email_id=order.email_id,
+        customer=order.email_sender,
+        loading_address=order.loading_address,
+        unloading_address=order.unloading_address,
+        loading_date=order.loading_date,
+        unloading_date=order.unloading_date,
+        status=status
+    )
