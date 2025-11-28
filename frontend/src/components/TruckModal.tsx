@@ -9,6 +9,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +28,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import type { Truck } from "../pages/FleetPage";
+import { createTruck, updateTruck, type Truck } from "../api/client";
 
 const formSchema = z.object({
     plate_number: z.string().min(1, "License plate is required").max(50),
@@ -76,28 +77,10 @@ export function TruckModal({ isOpen, onClose, onSuccess, truck }: TruckModalProp
 
     const onSubmit: SubmitHandler<FormValues> = async (values) => {
         try {
-            const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8000").trim().replace(/\/$/, "");
-            const url = truck
-                ? `${baseUrl}/trucks/${truck.id}`
-                : `${baseUrl}/trucks/`;
-
-            const method = truck ? "PUT" : "POST";
-
-            const payload = {
-                ...values,
-            };
-
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || "Failed to save truck");
+            if (truck) {
+                await updateTruck(truck.id, values);
+            } else {
+                await createTruck(values);
             }
 
             onSuccess();
@@ -114,6 +97,9 @@ export function TruckModal({ isOpen, onClose, onSuccess, truck }: TruckModalProp
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>{truck ? "Edit Truck" : "Add New Truck"}</DialogTitle>
+                    <DialogDescription>
+                        {truck ? "Edit the details of this truck." : "Fill in the details to add a new truck to your fleet."}
+                    </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-4">

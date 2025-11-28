@@ -4,14 +4,14 @@ import { fetchOrder } from '../api/client';
 import { ArrowLeft, MapPin, Package, Truck, Calendar, User, Info } from 'lucide-react';
 
 export function OrderDetailsPage() {
-    const { orderId } = useParams<{ orderId: string }>();
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const id = parseInt(orderId || '0', 10);
+    const orderId = parseInt(id || '0', 10);
 
     const { data: order, isLoading, error } = useQuery({
-        queryKey: ['order', id],
-        queryFn: () => fetchOrder(id),
-        enabled: !!id,
+        queryKey: ['order', orderId],
+        queryFn: () => fetchOrder(orderId),
+        enabled: !!orderId,
     });
 
     if (isLoading) {

@@ -35,19 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, MoreVertical, Filter } from "lucide-react";
 import { TruckModal } from "../components/TruckModal";
-
-// Types
-export type TruckStatus = "AVAILABLE" | "MAINTENANCE" | "OUT_OF_SERVICE" | "INACTIVE";
-
-export interface Truck {
-    id: string;
-    plate_number: string;
-    trailer_plate_number?: string;
-    capacity_weight: number;
-    status: TruckStatus;
-    current_location?: string;
-    assigned_driver?: string;
-}
+import { fetchTrucks as fetchTrucksApi, deleteTruck as deleteTruckApi, type Truck, type TruckStatus } from "../api/client";
 
 const STATUS_COLORS: Record<TruckStatus, string> = {
     AVAILABLE: "bg-green-500",
@@ -74,9 +62,7 @@ export default function FleetPage() {
     const fetchTrucks = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/trucks/`);
-            if (!response.ok) throw new Error("Failed to fetch trucks");
-            const data = await response.json();
+            const data = await fetchTrucksApi();
             setTrucks(data);
         } catch (error) {
             console.error("Error fetching trucks:", error);
@@ -98,10 +84,7 @@ export default function FleetPage() {
     const handleDelete = async () => {
         if (!truckToDelete) return;
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/trucks/${truckToDelete}`, {
-                method: "DELETE",
-            });
-            if (!response.ok) throw new Error("Failed to delete truck");
+            await deleteTruckApi(truckToDelete);
             fetchTrucks();
         } catch (error) {
             console.error("Error deleting truck:", error);

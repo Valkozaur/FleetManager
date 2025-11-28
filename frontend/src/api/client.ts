@@ -11,7 +11,19 @@ export interface Order {
     status: 'Pending' | 'Assigned' | 'In Transit' | 'Completed' | 'Cancelled';
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.valdanktrading.org';
+export type TruckStatus = "AVAILABLE" | "MAINTENANCE" | "OUT_OF_SERVICE" | "INACTIVE";
+
+export interface Truck {
+    id: string;
+    plate_number: string;
+    trailer_plate_number?: string;
+    capacity_weight: number;
+    status: TruckStatus;
+    current_location?: string;
+    assigned_driver?: string;
+}
+
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://api.valdanktrading.org');
 
 export const apiClient = axios.create({
     baseURL: API_URL,
@@ -29,4 +41,24 @@ export const fetchOrders = async (): Promise<Order[]> => {
 export const fetchOrder = async (id: number): Promise<Order> => {
     const response = await apiClient.get<Order>(`/orders/${id}`);
     return response.data;
+};
+
+// Truck APIs
+export const fetchTrucks = async (): Promise<Truck[]> => {
+    const response = await apiClient.get<Truck[]>('/trucks/');
+    return response.data;
+};
+
+export const createTruck = async (truck: Omit<Truck, 'id'>): Promise<Truck> => {
+    const response = await apiClient.post<Truck>('/trucks/', truck);
+    return response.data;
+};
+
+export const updateTruck = async (id: string, truck: Partial<Truck>): Promise<Truck> => {
+    const response = await apiClient.put<Truck>(`/trucks/${id}`, truck);
+    return response.data;
+};
+
+export const deleteTruck = async (id: string): Promise<void> => {
+    await apiClient.delete(`/trucks/${id}`);
 };
