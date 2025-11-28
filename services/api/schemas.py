@@ -30,13 +30,17 @@ class TruckStatus(str, Enum):
     INACTIVE = "INACTIVE"
 
 class RouteCreate(BaseModel):
-    driver_id: UUID
     truck_id: UUID
     scheduled_start_at: datetime
 
+class RoutePlanRequest(BaseModel):
+    truck_id: UUID
+    date: datetime
+    order_ids: List[int]
+
 class RouteResponse(BaseModel):
     id: UUID
-    driver_id: UUID
+    name: str
     truck_id: UUID
     status: RouteStatus
     scheduled_start_at: datetime
@@ -112,4 +116,16 @@ class DriverResponse(BaseModel):
     # Derived fields
     assigned_truck_plate: Optional[str] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
+class OrderResponse(BaseModel):
+    id: int
+    email_id: str
+    customer: Optional[str] = None
+    loading_address: str
+    unloading_address: str
+    loading_date: datetime
+    unloading_date: datetime
+    status: str
+    
     model_config = ConfigDict(from_attributes=True)

@@ -80,7 +80,7 @@ export function TruckModal({ isOpen, onClose, onSuccess, truck }: TruckModalProp
             if (truck) {
                 await updateTruck(truck.id, values);
             } else {
-                await createTruck(values);
+                await createTruck({ ...values, is_active: true });
             }
 
             onSuccess();

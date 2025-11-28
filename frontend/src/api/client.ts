@@ -19,6 +19,7 @@ export interface Truck {
     trailer_plate_number?: string;
     capacity_weight: number;
     status: TruckStatus;
+    is_active: boolean;
     current_location?: string;
     assigned_driver?: string;
 }
@@ -61,4 +62,15 @@ export const updateTruck = async (id: string, truck: Partial<Truck>): Promise<Tr
 
 export const deleteTruck = async (id: string): Promise<void> => {
     await apiClient.delete(`/trucks/${id}`);
+};
+
+export interface RoutePlanRequest {
+    truck_id: string;
+    date: string; // ISO 8601
+    order_ids: number[];
+}
+
+export const createRoutePlan = async (plan: RoutePlanRequest): Promise<any> => {
+    const response = await apiClient.post('/routes/plan', plan);
+    return response.data;
 };

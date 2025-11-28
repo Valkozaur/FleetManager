@@ -1,33 +1,49 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, cast, Date
 from typing import List, Set
 from uuid import UUID
 from datetime import datetime, timezone
 
-from ..schemas import RouteCreate, RouteResponse, StopCreate, StopResponse, RouteStatusUpdate, StopStatusUpdate, RouteStatus, DriverStatus, StopStatus, StopActivityType
+from ..schemas import RouteCreate, RouteResponse, StopCreate, StopResponse, RouteStatusUpdate, StopStatusUpdate, RouteStatus, DriverStatus, StopStatus, StopActivityType, RoutePlanRequest, TruckStatus
 from ..dependencies import get_db
-from database_models.orm import Route, RouteStop, Driver, Truck
+from database_models.orm import Route, RouteStop, Driver, Truck, Order
 
 router = APIRouter(tags=["ops"])
 
 @router.post("/routes/", response_model=RouteResponse)
 async def create_route(route_in: RouteCreate, db: AsyncSession = Depends(get_db)):
-    # Verify driver and truck exist
-    driver = await db.get(Driver, route_in.driver_id)
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
-    
+    """
+    Legacy endpoint. Prefer /routes/plan.
+    """
     truck = await db.get(Truck, route_in.truck_id)
     if not truck:
         raise HTTPException(status_code=404, detail="Truck not found")
 
-    # Driver Conflict: Do not allow assigning a Route to a Driver who is already ON_ROUTE
+    # Check if truck has a driver
+    result = await db.execute(select(Driver).where(Driver.truck_id == truck.id))
+    driver = result.scalars().first()
+    if not driver:
+        raise HTTPException(status_code=400, detail="Truck has no assigned driver")
+
+    # Driver Conflict
     if driver.status == DriverStatus.ON_ROUTE:
          raise HTTPException(status_code=409, detail="Driver is already ON_ROUTE")
+    
+    # Basic name generation for legacy endpoint (fallback)
+    date_str = route_in.scheduled_start_at.strftime("%Y%m%d")
+    plate_clean = truck.plate_number.replace(" ", "").replace("-", "").upper()
+    # Simple count for name uniqueness (not robust for concurrency here, but legacy)
+    count_query = select(func.count()).select_from(Route).where(
+        cast(Route.scheduled_start_at, Date) == route_in.scheduled_start_at.date(),
+        Route.truck_id == truck.id
+    )
+    count_res = await db.execute(count_query)
+    seq = count_res.scalar() + 1
+    route_name = f"{date_str}-{plate_clean}-{seq}"
 
     new_route = Route(
-        driver_id=route_in.driver_id,
+        name=route_name,
         truck_id=route_in.truck_id,
         scheduled_start_at=route_in.scheduled_start_at,
         status=RouteStatus.PLANNED
@@ -35,6 +51,113 @@ async def create_route(route_in: RouteCreate, db: AsyncSession = Depends(get_db)
     db.add(new_route)
     await db.commit()
     await db.refresh(new_route)
+    return new_route
+
+@router.post("/routes/plan", response_model=RouteResponse)
+async def create_route_plan(plan: RoutePlanRequest, db: AsyncSession = Depends(get_db)):
+    # 1. Verify Truck
+    # Lock Truck for sequence generation safety
+    result = await db.execute(select(Truck).where(Truck.id == plan.truck_id).with_for_update())
+    truck = result.scalars().first()
+    
+    if not truck:
+        raise HTTPException(status_code=404, detail="Truck not found")
+    
+    if not truck.is_active:
+         raise HTTPException(status_code=400, detail="Truck is not active")
+
+    # 2. Verify Driver
+    result = await db.execute(select(Driver).where(Driver.truck_id == truck.id))
+    driver = result.scalars().first()
+    if not driver:
+        raise HTTPException(status_code=400, detail="Truck has no assigned driver")
+
+    # 3. Name Generation
+    plate_clean = truck.plate_number.replace(" ", "").replace("-", "").upper()
+    date_str = plan.date.strftime("%Y%m%d")
+    
+    # Count existing routes for this Truck + Date
+    # Note: plan.date might be datetime, cast to date
+    query = select(func.count()).select_from(Route).where(
+        cast(Route.scheduled_start_at, Date) == plan.date.date(),
+        Route.truck_id == truck.id
+    )
+    count_res = await db.execute(query)
+    current_count = count_res.scalar() or 0
+    seq = current_count + 1
+    
+    route_name = f"{date_str}-{plate_clean}-{seq}"
+    
+    # 4. Fetch Orders
+    stmt = select(Order).where(Order.id.in_(plan.order_ids))
+    orders_res = await db.execute(stmt)
+    orders = orders_res.scalars().all()
+    
+    found_ids = {o.id for o in orders}
+    missing = set(plan.order_ids) - found_ids
+    if missing:
+        raise HTTPException(status_code=404, detail=f"Orders not found: {missing}")
+        
+    # Sort orders to match input list order
+    order_map = {o.id: o for o in orders}
+    ordered_orders = [order_map[oid] for oid in plan.order_ids]
+
+    # 5. Create Route
+    new_route = Route(
+        name=route_name,
+        truck_id=truck.id,
+        scheduled_start_at=plan.date,
+        status=RouteStatus.PLANNED
+    )
+    db.add(new_route)
+    await db.flush() # Get ID
+
+    # 6. Create Stops
+    stops = []
+    seq_counter = 1
+    
+    for order in ordered_orders:
+        # Stop A: Pickup
+        pickup_loc = {
+            "address": order.loading_address,
+            "coordinates": order.loading_coordinates
+        }
+        stop_a = RouteStop(
+            route_id=new_route.id,
+            order_id=order.id,
+            sequence_number=seq_counter,
+            activity_type=StopActivityType.PICKUP,
+            status=StopStatus.PENDING,
+            location=pickup_loc
+        )
+        stops.append(stop_a)
+        seq_counter += 1
+        
+        # Stop B: Drop
+        drop_loc = {
+            "address": order.unloading_address,
+            "coordinates": order.unloading_coordinates
+        }
+        stop_b = RouteStop(
+            route_id=new_route.id,
+            order_id=order.id,
+            sequence_number=seq_counter,
+            activity_type=StopActivityType.DROP,
+            status=StopStatus.PENDING,
+            location=drop_loc
+        )
+        stops.append(stop_b)
+        seq_counter += 1
+        
+    db.add_all(stops)
+    
+    try:
+        await db.commit()
+        await db.refresh(new_route)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create route: {str(e)}")
+
     return new_route
 
 @router.post("/routes/{route_id}/stops/batch", response_model=List[StopResponse])
@@ -108,9 +231,15 @@ async def update_route_status(route_id: UUID, status_update: RouteStatusUpdate, 
     if old_status == new_status:
         return route
 
-    driver = await db.get(Driver, route.driver_id)
+    # Find driver via truck
+    # route.driver_id no longer exists. Need to find driver from truck_id
+    result = await db.execute(select(Driver).where(Driver.truck_id == route.truck_id))
+    driver = result.scalars().first()
+    
     if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
+        # If no driver, we can't set to ACTIVE/ON_ROUTE generally, but maybe we can complete?
+        # For now assume driver must exist
+         raise HTTPException(status_code=404, detail="Driver not found for this route's truck")
 
     if new_status == RouteStatus.ACTIVE:
         if driver.status == DriverStatus.ON_ROUTE:

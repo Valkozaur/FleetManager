@@ -100,13 +100,13 @@ class Route(Base):
     __tablename__ = "routes"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    driver_id = Column(UUID(as_uuid=True), ForeignKey("drivers.id"), nullable=False)
+    name = Column(String(255), unique=True, index=True, nullable=False)
     truck_id = Column(UUID(as_uuid=True), ForeignKey("trucks.id"), nullable=False)
     status = Column(ENUM(RouteStatus, name="route_status_enum", create_type=False), default=RouteStatus.PLANNED, nullable=False)
     scheduled_start_at = Column(DateTime, nullable=False)
 
     def __repr__(self) -> str:
-        return f"<Route(id={self.id}, status={self.status})>"
+        return f"<Route(id={self.id}, name={self.name}, status={self.status})>"
 
 class RouteStop(Base):
     __tablename__ = "route_stops"

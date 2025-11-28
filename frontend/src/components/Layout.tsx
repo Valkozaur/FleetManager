@@ -1,4 +1,4 @@
-import { LayoutDashboard, List, Truck, Users } from "lucide-react";
+import { LayoutDashboard, List, Truck, Users, Route as RouteIcon } from "lucide-react";
 import { Link, useLocation, Outlet } from "react-router-dom";
 
 export function Layout() {
@@ -6,6 +6,7 @@ export function Layout() {
 
     const navItems = [
         { name: "Dashboard", href: "/", icon: LayoutDashboard },
+        { name: "Routes", href: "/routes/create", icon: RouteIcon },
         { name: "Orders", href: "/orders", icon: List },
         { name: "Fleet", href: "/fleet", icon: Truck },
         { name: "Drivers", href: "/drivers", icon: Users },
